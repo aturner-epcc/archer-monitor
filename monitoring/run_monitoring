@@ -1,0 +1,23 @@
+#!/bin/bash
+
+: ${ARCHER_MON_BASEDIR:?"Environment variable not set"}
+
+# Check if components are specified
+if (( $# > 0 )); then
+   # Loop over command line arguments, running commands
+   for subdir in "$@"
+   do
+      echo "Running: $ARCHER_MON_BASEDIR/monitoring/$subdir"
+      $ARCHER_MON_BASEDIR/monitoring/$subdir/run_monitoring
+   done
+else 
+   # No components specified, loop over all of them
+   # Loop over monitoring subdirectories running the monitoring
+   for subdir in $(find $ARCHER_MON_BASEDIR/monitoring -mindepth 1 -maxdepth 1 -type d)
+   do
+      echo "Running: $subdir"
+      $subdir/run_monitoring
+   done
+fi
+
+exit 0

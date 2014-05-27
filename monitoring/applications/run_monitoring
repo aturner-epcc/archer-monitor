@@ -1,0 +1,7 @@
+#!/bin/bash
+#
+# Run the monitoring of applications
+#
+# Depends on ARCHER_MON_BASEDIR being set
+#
+$ARCHER_MON_BASEDIR/monitoring/applications/running_applications.bash >> $ARCHER_MON_BASEDIR/logs/running_applications.log

@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+# Run the monitoring of the PP nodes
+#
+# Depends on ARCHER_MON_BASEDIR being set
+#
+ssh espp1 "$ARCHER_MON_BASEDIR/monitoring/pp-nodes/cpu_and_mem_use.bash" >> $ARCHER_MON_BASEDIR/logs/espp1_load.log
+ssh espp2 "$ARCHER_MON_BASEDIR/monitoring/pp-nodes/cpu_and_mem_use.bash" >> $ARCHER_MON_BASEDIR/logs/espp2_load.log
