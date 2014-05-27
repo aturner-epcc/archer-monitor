@@ -1,0 +1,154 @@
+#!/usr/bin/env python
+i#
+#===============================================================
+# code_usage
+#
+# Analyse code usage from logs
+#===============================================================
+#
+#===============================================================
+# v0.1 - Initial version
+#===============================================================
+#
+#----------------------------------------------------------------------
+# Copyright 2014 EPCC, The University of Edinburgh
+#
+# This file is part of archer-monitoring.
+#
+# archer-monitoring is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# archer-monitoring is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with archer-monitoring.  If not, see <http://www.gnu.org/licenses/>.
+#----------------------------------------------------------------------
+#
+"""Produce job submission scripts using a common interface.
+
+This tool produces job submission scripts for a variety of compute
+resources and batch systems. It attempts to partition the work in a
+pseudo-optimal way and select sensible options. It will also include
+compulsory options required on particular resources.
+
+OPTIONS
+
+-A,--account <account>   Specify the account to charge the job to. If
+                         not specified then it is not included in the
+                         output.
+                         
+-b,--batch <batch>       Specify the batch system to create job submission
+                         script for. Default is specified by the resource
+                         configuration. Use the '-l' option to list valid
+                         values.
+
+-c,--code <code>         Specify a simulation code to generate a batch
+                         script for. Use the '-l' option to list valid 
+                         values and details on the arguments that should
+                         be provided.
+
+-d,--threads <n>         The number of shared-memory threads per parallel
+                         task. Default is 1.
+                         
+-h,--help                Show this help.
+
+-i,--info                Display the program licence and warranty.
+
+-j,--job-name            The job name. Defaults to the name of the 
+                         specified executable.
+
+-l,--list                List the resources and batch systems available.
+
+-n,--tasks <n>           Number of parallel tasks. Defaults to 1. If
+                         number of parallel tasks is 1 then the tool
+                         will try to produce a serial job submission
+                         script (unless the '-p' option is specified).
+
+-N,--tasks-per-node <n>  Number of parallel tasks per node. Defaults to
+                         the minimum of the number of tasks or the number
+                         of cores per node for the specified resource.
+
+-o,--output <filename>   The output filename to use. The default is
+                         "a.bolt".
+
+-p,--force-parallel      Force the tool to create a parallel job even if
+                         the number of tasks is 1.
+
+-q,--queue <queue>       Specify the queue to submit the job to. This 
+                         will usually be set correctly by default.
+
+-r,--resource <resource> Specify the resource to create a job submission
+                         script for. Default is set by the install system.
+                         Use the '-l' option to list valid values.
+
+-s,--submit              Submit the created job submission script to the
+             batch system. Default is not to submit job.
+             
+-t,--job-time <hh:mm:ss> Specify the wallclock limit for the job.
+"""
+__author__ = 'Andrew Turner, EPCC, The University of Edinburgh'
+__version__ = '0.1'
+
+def main(argv):
+
+    #=======================================================
+    # Print out the banner
+    #=======================================================
+    sys.stderr.write("===========================================================================\n")
+    sys.stderr.write("code_usage " + __version__ + "\n")
+    sys.stderr.write("---------------------------------------------------------------------------\n")
+    sys.stderr.write("Copyright 2012  EPCC, The University of Edinburgh \n")
+    sys.stderr.write("This program comes with ABSOLUTELY NO WARRANTY; for details type `bolt -i'.\n")
+    sys.stderr.write("This is free software, and you are welcome to redistribute it\n")
+    sys.stderr.write("under certain conditions; type `code_usage -i' for details.\n")
+    sys.stderr.write("===========================================================================\n")
+
+    #=======================================================
+    # Read any code definitions
+    #=======================================================
+    codeConfigDir = rootDir + '/descriptions'
+    codes = []
+    nCode = 0
+    # We also need to create a dictionary of resources here
+    codeDict = {}
+    for file in os.listdir(codeConfigDir):
+        if fnmatch.fnmatch(file, '*.code'):
+            nCode += 1
+            code = Code()   
+            code.readConfig(codeConfigDir + '/' + file)
+            codes.append(code)
+            codeDict[code.name] = nCode - 1
+
+    #=======================================================
+    # Command line options
+    #=======================================================
+    # Read the command-line options
+    try:
+        opts, args = getopt.getopt(argv, "n:N:d:A:t:o:r:b:q:j:c:plshi", \
+                      ["tasks=", "tasks-per-node=", "threads=", "account=", \
+                      "job-time=", "output-file=", "resource=", "batch=", "queue=", \
+                      "job-name=", "code=", "force-parallel", "list", "submit", \
+                      "help", "info"])
+    except getopt.GetoptError:
+        error.handleError("Could not parse command line options\n")
+
+    # Parse the command-line options
+    for opt, arg in opts:
+        if opt in ("-n", "--tasks"):
+            job.setTasks(arg)
+
+def printHelp(rootDir):
+    """Print help for the tool.
+           
+           Arguments:
+              str rootDir - The root install directory of the tool.
+        """
+    subprocess.call(["pydoc", rootDir + "/bin/bolt"])
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
