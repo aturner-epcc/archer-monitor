@@ -40,7 +40,7 @@ __version__ = '0.1'
 
 # Import the required modules
 from code_def import CodeDef
-import error
+import err_handle as error
 import sys
 import os
 import fnmatch
@@ -48,6 +48,8 @@ import getopt
 import subprocess
 import ConfigParser
 import grp
+import re
+import time
 
 def main(argv):
 
@@ -67,6 +69,7 @@ def main(argv):
     # Global configuration section
     #=======================================================
     rootDir = os.environ['ARCHER_MON_BASEDIR']
+    sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
 
     #=======================================================
     # Read any code definitions
@@ -84,9 +87,35 @@ def main(argv):
             codes.append(code)
             codeDict[code.name] = nCode - 1
 
+    # Here we loop over all defined codes zeroing the appropriate dicts
+    totjobs = 0
+    totnh = 0
+    totusers = 0
+    matchedjobs = {}
+    users = ''
+    code_regexp = {}
+    code_users = {}
+    code_num_users = {}
+    code_nh = {}
+    code_nh_bysize = {}
+    code_jobs = {}
+    code_jobs_bysize = {}
     for code in codes:
        summary = code.summaryString()
-       sys.stdout.write("{0}\n".format(summary))
+       name = code.name
+       code_regexp[name] = code.regexp
+       code_nh[name] = 0
+       code_jobs[name] = 0
+       code_users[name] = ''
+       code_num_users[name] = 0
+       sys.stdout.write("{0} {1}\n".format(name, code_regexp[name]))
+       for size in sizes:
+          # This is funky Python syntax for defining a 2D dict
+          code_nh_bysize[name] = code_nh_bysize.get(name, {})
+          code_nh_bysize[name][size] = 0
+          code_jobs_bysize[name] = code_jobs_bysize.get(name, {})
+          code_jobs_bysize[name][size] = 0
+       
 
     #=======================================================
     # Command line options
@@ -106,6 +135,115 @@ def main(argv):
         if opt in ("-h", "--help"):
             printHelp(rootDir)
             exit(0)
+
+
+    # Get the start and end times
+    starttime = 0
+    endtime = time.mktime(time.gmtime())
+
+    # Read the name of the logfile and open it
+    logfilename = argv[0]
+    sys.stdout.write("Analysing data in: {0}\n".format(logfilename))
+    logFile = None
+    try:
+        logFile = open(logfilename, "r")
+    except IOError as (errno, strerror):
+        error.handleError("Opening output file: {0}; {1}".format(logfilename, strerror), errno)
+
+
+
+    # Initialise variables
+    intimerange = False
+    # Loop over lines in the file reading them
+    for line in logFile:
+
+       if re.match("__START", line) is not None:
+          timeline = line.rstrip()
+          tokens = timeline.split()
+          thistime = int(time.mktime(time.strptime(tokens[1], "%Y-%m-%d")))
+          # If we are past the end time then finish the loop
+          if thistime > endtime:
+             sys.stdout.write("Finished at: {0}".format(timeline))
+             break
+          elif thistime >= starttime:
+             if intimerange == False:
+                sys.stdout.write("Starting at: {0}\n".format(timeline))
+             intimerange = True
+             continue
+       # End of if start block match
+
+       # If we are in the time range then accumulate data
+       if intimerange:
+          
+          # Skip the end indicator
+          if re.match("__END", line) is not None:
+             continue
+
+
+          # Extract the useful information from the log
+          line = line.rstrip()
+          tokens = line.split()
+
+          jobid = tokens[0]
+          user = tokens[2]
+          nodes = tokens[4]
+          exename = tokens[7]
+
+          # Add this number of hours to total
+          totnh += int(nodes)
+
+          # Check we have not already seen this job
+          countjob = True
+          if jobid in matchedjobs:
+             countjob = False
+          else:
+             totjobs += 1
+             matchedjobs[jobid] = True
+
+          # Check if we have already seen this user
+          if user not in users:
+             users = "{0} {1}".format(users, user)
+             totusers += 1
+
+          # Loop over codes, storing this job
+          matched = False
+          for code in codes:
+             name = code.name
+             if re.search(code_regexp[name], exename):
+                matched = True
+                code_nh[name] += int(nodes)
+                if countjob: code_jobs[name] += 1
+                if user not in code_users[name]:
+                   code_users[name] = "{0} {1}".format(code_users[name], user)
+                   code_num_users[name] += 1
+                for size in sizes:
+                   if int(nodes) <= size:
+                      code_nh_bysize[name][size] += int(nodes)
+                      if countjob: code_jobs_bysize[name][size] += 1
+                      break
+       # End of if intimerange
+
+    # End of loop over logfile lines
+    
+    # Close the logfile
+    logFile.close()
+
+
+    # Loop over codes
+    for code in codes:
+       name = code.name
+       sys.stdout.write("   {0}   {1} node hours\n".format(name, code_nh[name]))
+       sys.stdout.write("   {0}   {1} jobs\n".format(name, code_jobs[name]))
+       sys.stdout.write("   {0}   {1} users\n".format(name, code_num_users[name]))
+       for size in sizes:
+          sys.stdout.write(" {0}".format(code_nh_bysize[name][size]))
+       sys.stdout.write("\n")
+       for size in sizes:
+          sys.stdout.write(" {0}".format(code_jobs_bysize[name][size]))
+       sys.stdout.write("\n")
+
+    # Finish nicely
+    exit(0)
 
 def printHelp(rootDir):
     """Print help for the tool.
