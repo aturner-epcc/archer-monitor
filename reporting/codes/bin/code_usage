@@ -91,6 +91,8 @@ def main(argv):
     totjobs = 0
     totnh = 0
     totusers = 0
+    tot_nh_bysize = {}
+    tot_jobs_bysize = {}
     matchedjobs = {}
     users = ''
     code_regexp = {}
@@ -100,6 +102,17 @@ def main(argv):
     code_nh_bysize = {}
     code_jobs = {}
     code_jobs_bysize = {}
+    other_nh = 0
+    other_users = ""
+    other_num_users = 0
+    other_nh_bysize = {}
+    other_jobs = 0
+    other_jobs_bysize = {}
+    for size in sizes:
+       tot_nh_bysize[size] = 0
+       tot_jobs_bysize[size] = 0
+       other_nh_bysize[size] = 0
+       other_jobs_bysize[size] = 0
     for code in codes:
        summary = code.summaryString()
        name = code.name
@@ -219,8 +232,29 @@ def main(argv):
                 for size in sizes:
                    if int(nodes) <= size:
                       code_nh_bysize[name][size] += int(nodes)
-                      if countjob: code_jobs_bysize[name][size] += 1
+                      tot_nh_bysize[size] += int(nodes)
+                      if countjob:
+                         code_jobs_bysize[name][size] += 1
+                         tot_jobs_bysize[size] += 1
                       break
+          # End of loop over codes
+
+          # Store if not matched to defined code
+          if not matched:
+             other_nh += int(nodes)
+             if countjob: other_jobs += 1
+             if user not in other_users:
+                other_users = "{0} {1}".format(other_users, user)
+                other_num_users += 1
+             for size in sizes:
+                if int(nodes) <= size:
+                   other_nh_bysize[size] += int(nodes)
+                   tot_nh_bysize[size] += int(nodes)
+                   if countjob:
+                      other_jobs_bysize[size] += 1
+                      tot_jobs_bysize[size] += 1
+                   break
+ 
        # End of if intimerange
 
     # End of loop over logfile lines
@@ -229,18 +263,80 @@ def main(argv):
     logFile.close()
 
 
-    # Loop over codes
-    for code in codes:
-       name = code.name
-       sys.stdout.write("   {0}   {1} node hours\n".format(name, code_nh[name]))
-       sys.stdout.write("   {0}   {1} jobs\n".format(name, code_jobs[name]))
-       sys.stdout.write("   {0}   {1} users\n".format(name, code_num_users[name]))
+    # Loop over codes printing usage
+    sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
+    sys.stdout.write("{0:>15s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs", "Users"))
+    sys.stdout.write("{0:>15s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
+    for name in sorted(code_nh, key=code_nh.get, reverse=True):
+       nhfrac = float(code_nh[name])/float(totnh)
+       jobfrac = float(code_jobs[name])/float(totjobs)
+       sys.stdout.write("{0:>15s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name]))
+    nhfrac = float(other_nh)/float(totnh)
+    jobfrac = float(other_jobs)/float(totjobs)
+    sys.stdout.write("{0:>15s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format("Other", other_nh, nhfrac, other_jobs, jobfrac, other_num_users))
+    sys.stdout.write("{0:>15s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("----", "----------", "------", "----", "------", "-----"))
+    sys.stdout.write("{0:>15s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format("Total", totnh, nhfrac, totjobs, jobfrac, totusers))
+    sys.stdout.write("{0:>15s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
+
+    # Node hours by job size
+    sys.stdout.write("\n\nNode hours by job size\n")
+    head = "{0:>15s}".format("Code")
+    lines = "{0:>15s}".format("====")
+    for size in sizes:
+       head = head + "{0:>10d}".format(size)
+       lines = lines + "{0:>10s}".format("=====")
+    sys.stdout.write(head + "\n" + lines + "\n")
+    for name in sorted(code_nh, key=code_nh.get, reverse=True):
+       sys.stdout.write("{0:>15s}".format(name))
        for size in sizes:
-          sys.stdout.write(" {0}".format(code_nh_bysize[name][size]))
+          sys.stdout.write("{0:10d}".format(code_nh_bysize[name][size]))
        sys.stdout.write("\n")
+    sys.stdout.write("{0:>15s}".format("Other"))
+    for size in sizes:
+       sys.stdout.write("{0:>10d}".format(other_nh_bysize[size]))
+    sys.stdout.write("\n")
+    lines = "{0:>15s}".format("----")
+    for size in sizes:
+       lines = lines + "{0:>10s}".format("-----")
+    sys.stdout.write(lines + "\n")
+    sys.stdout.write("{0:>15s}".format("Total"))
+    for size in sizes:
+       sys.stdout.write("{0:>10d}".format(tot_nh_bysize[size]))
+    sys.stdout.write("\n")
+    lines = "{0:>15s}".format("====")
+    for size in sizes:
+       lines = lines + "{0:>10s}".format("====")
+    sys.stdout.write(lines + "\n")
+
+    # Jobs by job size
+    sys.stdout.write("\n\nNumber of jobs by job size\n")
+    head = "{0:>15s}".format("Code")
+    lines = "{0:>15s}".format("====")
+    for size in sizes:
+       head = head + "{0:>10d}".format(size)
+       lines = lines + "{0:>10s}".format("=====")
+    sys.stdout.write(head + "\n" + lines + "\n")
+    for name in sorted(code_nh, key=code_nh.get, reverse=True):
+       sys.stdout.write("{0:>15s}".format(name))
        for size in sizes:
-          sys.stdout.write(" {0}".format(code_jobs_bysize[name][size]))
+          sys.stdout.write("{0:10d}".format(code_jobs_bysize[name][size]))
        sys.stdout.write("\n")
+    sys.stdout.write("{0:>15s}".format("Other"))
+    for size in sizes:
+       sys.stdout.write("{0:>10d}".format(other_jobs_bysize[size]))
+    sys.stdout.write("\n")
+    lines = "{0:>15s}".format("----")
+    for size in sizes:
+       lines = lines + "{0:>10s}".format("-----")
+    sys.stdout.write(lines + "\n")
+    sys.stdout.write("{0:>15s}".format("Total"))
+    for size in sizes:
+       sys.stdout.write("{0:>10d}".format(tot_jobs_bysize[size]))
+    sys.stdout.write("\n")
+    lines = "{0:>15s}".format("====")
+    for size in sizes:
+       lines = lines + "{0:>10s}".format("====")
+    sys.stdout.write(lines + "\n")
 
     # Finish nicely
     exit(0)
