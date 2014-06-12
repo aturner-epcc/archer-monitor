@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: VASP
-regexp: vasp
+name: MITgcm
+regexp: mitgcm
 
 [metadata]
 primary language: Fortran
 version:          95
 
-academic license: Fee
-commercial license: Fee
+academic license: Free
+commercial license: Free
 
-code type: Periodic Electronic Structure
+code type: Earth Systems Modelling
 
-research area: Materials Science
+research area: Climate Modelling
 

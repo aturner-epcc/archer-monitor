@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: VASP
-regexp: vasp
+name: CASINO
+regexp: casino
 
 [metadata]
 primary language: Fortran
 version:          95
 
-academic license: Fee
+academic license: Free
 commercial license: Fee
 
-code type: Periodic Electronic Structure
+code type: Quantum Monte Carlo
 
 research area: Materials Science
 

@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: VASP
-regexp: vasp
+name: HemeLB
+regexp: hemelb
 
 [metadata]
 primary language: Fortran
 version:          95
 
-academic license: Fee
-commercial license: Fee
+academic license: Free
+commercial license: Free
 
-code type: Periodic Electronic Structure
+code type: Lattice Boltzman
 
-research area: Materials Science
+research area: Blood Flow
 

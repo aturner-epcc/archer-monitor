@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: VASP
-regexp: vasp
+name: DL_POLY
+regexp: DLPOLY|dlpoly
 
 [metadata]
 primary language: Fortran
 version:          95
 
-academic license: Fee
+academic license: Free
 commercial license: Fee
 
-code type: Periodic Electronic Structure
+code type: Classical Molecular Mechanics
 
 research area: Materials Science
 

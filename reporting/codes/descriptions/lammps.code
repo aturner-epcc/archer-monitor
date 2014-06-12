@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: VASP
-regexp: vasp
+name: LAMMPS
+regexp: lmp|lammps
 
 [metadata]
-primary language: Fortran
-version:          95
+primary language: C++
+version:         
 
-academic license: Fee
+academic license: Free
 commercial license: Fee
 
-code type: Periodic Electronic Structure
+code type: Classical Molecular Mechanics
 
 research area: Materials Science
 

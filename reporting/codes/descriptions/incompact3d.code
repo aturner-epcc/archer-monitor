@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: VASP
-regexp: vasp
+name: incompact3d
+regexp: incompact3d
 
 [metadata]
 primary language: Fortran
 version:          95
 
-academic license: Fee
-commercial license: Fee
+academic license: Open Source
+commercial license: Open Source
 
-code type: Periodic Electronic Structure
+code type: Incompressible Navier Stokes
 
-research area: Materials Science
+research area: Turbulence
 

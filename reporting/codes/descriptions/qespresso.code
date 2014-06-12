@@ -19,15 +19,15 @@
 #
 
 [code info]
-name: VASP
-regexp: vasp
+name: Quantum Espresso
+regexp: cp.x|ph.x|pw.x
 
 [metadata]
 primary language: Fortran
 version:          95
 
-academic license: Fee
-commercial license: Fee
+academic license: Open Source
+commercial license: Open Source
 
 code type: Periodic Electronic Structure
 

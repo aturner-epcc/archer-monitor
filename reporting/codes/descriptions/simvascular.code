@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: VASP
-regexp: vasp
+name: SimVascular
+regexp: flowsolver
 
 [metadata]
-primary language: Fortran
-version:          95
+primary language: C++
+version:          
 
-academic license: Fee
+academic license: Free
 commercial license: Fee
 
-code type: Periodic Electronic Structure
+code type: Finite Element
 
-research area: Materials Science
+research area: Cardiovascular Simulation
 

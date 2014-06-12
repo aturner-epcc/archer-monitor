@@ -19,8 +19,8 @@
 #
 
 [code info]
-name: VASP
-regexp: vasp
+name: CRYSTAL
+regexp: crystal
 
 [metadata]
 primary language: Fortran
