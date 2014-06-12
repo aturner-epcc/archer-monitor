@@ -60,7 +60,7 @@ def main(argv):
     sys.stderr.write("code_usage " + __version__ + "\n")
     sys.stderr.write("---------------------------------------------------------------------------\n")
     sys.stderr.write("Copyright 2012  EPCC, The University of Edinburgh \n")
-    sys.stderr.write("This program comes with ABSOLUTELY NO WARRANTY; for details type `bolt -i'.\n")
+    sys.stderr.write("This program comes with ABSOLUTELY NO WARRANTY; for details type `code_usage -i'.\n")
     sys.stderr.write("This is free software, and you are welcome to redistribute it\n")
     sys.stderr.write("under certain conditions; type `code_usage -i' for details.\n")
     sys.stderr.write("===========================================================================\n")
@@ -70,6 +70,7 @@ def main(argv):
     #=======================================================
     rootDir = os.environ['ARCHER_MON_BASEDIR']
     sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+    thresh = 0.005
 
     #=======================================================
     # Read any code definitions
@@ -87,7 +88,7 @@ def main(argv):
             codes.append(code)
             codeDict[code.name] = nCode - 1
 
-    # Here we loop over all defined codes zeroing the appropriate dicts
+    # Here we loop over all defined codes zeroing the appropriate variables and dicts
     totjobs = 0
     totnh = 0
     totusers = 0
@@ -108,20 +109,19 @@ def main(argv):
     other_nh_bysize = {}
     other_jobs = 0
     other_jobs_bysize = {}
+    other_codes = {}
     for size in sizes:
        tot_nh_bysize[size] = 0
        tot_jobs_bysize[size] = 0
        other_nh_bysize[size] = 0
        other_jobs_bysize[size] = 0
     for code in codes:
-       summary = code.summaryString()
        name = code.name
        code_regexp[name] = code.regexp
        code_nh[name] = 0
        code_jobs[name] = 0
        code_users[name] = ''
        code_num_users[name] = 0
-       sys.stdout.write("{0} {1}\n".format(name, code_regexp[name]))
        for size in sizes:
           # This is funky Python syntax for defining a 2D dict
           code_nh_bysize[name] = code_nh_bysize.get(name, {})
@@ -242,6 +242,10 @@ def main(argv):
           # Store if not matched to defined code
           if not matched:
              other_nh += int(nodes)
+             if exename in other_codes:
+                other_codes[exename] += int(nodes)
+             else:
+                other_codes[exename] = int(nodes)
              if countjob: other_jobs += 1
              if user not in other_users:
                 other_users = "{0} {1}".format(other_users, user)
@@ -262,81 +266,193 @@ def main(argv):
     # Close the logfile
     logFile.close()
 
+    totnh = 0
+    totjobs = 0
+    for name in sorted(code_nh, key=code_nh.get, reverse=True):
+       totnh = totnh + code_nh[name]
+       totjobs = totjobs + code_jobs[name]
+    totnh = totnh + other_nh
+    totjobs = totjobs + other_jobs
 
     # Loop over codes printing usage
     sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
-    sys.stdout.write("{0:>15s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs", "Users"))
-    sys.stdout.write("{0:>15s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs", "Users"))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
     for name in sorted(code_nh, key=code_nh.get, reverse=True):
-       nhfrac = float(code_nh[name])/float(totnh)
-       jobfrac = float(code_jobs[name])/float(totjobs)
-       sys.stdout.write("{0:>15s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name]))
-    nhfrac = float(other_nh)/float(totnh)
-    jobfrac = float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>15s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format("Other", other_nh, nhfrac, other_jobs, jobfrac, other_num_users))
-    sys.stdout.write("{0:>15s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("----", "----------", "------", "----", "------", "-----"))
-    sys.stdout.write("{0:>15s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format("Total", totnh, nhfrac, totjobs, jobfrac, totusers))
-    sys.stdout.write("{0:>15s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
+       nhfrac = 100 * float(code_nh[name])/float(totnh)
+       jobfrac = 100 * float(code_jobs[name])/float(totjobs)
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name]))
+    nhfrac = 100 * float(other_nh)/float(totnh)
+    jobfrac = 100 * float(other_jobs)/float(totjobs)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac, other_num_users))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("----", "----------", "------", "----", "------", "-----"))
+    nhfrac = 100 * float(totnh)/float(totnh)
+    jobfrac = 100 * float(totjobs)/float(totjobs)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format("Total", totnh, nhfrac, totjobs, jobfrac, totusers))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
 
     # Node hours by job size
     sys.stdout.write("\n\nNode hours by job size\n")
-    head = "{0:>15s}".format("Code")
-    lines = "{0:>15s}".format("====")
+    head = "{0:>20s}".format("Code")
+    lines = "{0:>20s}".format("====")
     for size in sizes:
        head = head + "{0:>10d}".format(size)
        lines = lines + "{0:>10s}".format("=====")
     sys.stdout.write(head + "\n" + lines + "\n")
     for name in sorted(code_nh, key=code_nh.get, reverse=True):
-       sys.stdout.write("{0:>15s}".format(name))
+       sys.stdout.write("{0:>20s}".format(name))
        for size in sizes:
           sys.stdout.write("{0:10d}".format(code_nh_bysize[name][size]))
        sys.stdout.write("\n")
-    sys.stdout.write("{0:>15s}".format("Other"))
+    sys.stdout.write("{0:>20s}".format("Unknown"))
     for size in sizes:
        sys.stdout.write("{0:>10d}".format(other_nh_bysize[size]))
     sys.stdout.write("\n")
-    lines = "{0:>15s}".format("----")
+    lines = "{0:>20s}".format("----")
     for size in sizes:
        lines = lines + "{0:>10s}".format("-----")
     sys.stdout.write(lines + "\n")
-    sys.stdout.write("{0:>15s}".format("Total"))
+    sys.stdout.write("{0:>20s}".format("Total"))
     for size in sizes:
        sys.stdout.write("{0:>10d}".format(tot_nh_bysize[size]))
     sys.stdout.write("\n")
-    lines = "{0:>15s}".format("====")
+    lines = "{0:>20s}".format("====")
     for size in sizes:
        lines = lines + "{0:>10s}".format("====")
     sys.stdout.write(lines + "\n")
 
     # Jobs by job size
     sys.stdout.write("\n\nNumber of jobs by job size\n")
-    head = "{0:>15s}".format("Code")
-    lines = "{0:>15s}".format("====")
+    head = "{0:>20s}".format("Code")
+    lines = "{0:>20s}".format("====")
     for size in sizes:
        head = head + "{0:>10d}".format(size)
        lines = lines + "{0:>10s}".format("=====")
     sys.stdout.write(head + "\n" + lines + "\n")
     for name in sorted(code_nh, key=code_nh.get, reverse=True):
-       sys.stdout.write("{0:>15s}".format(name))
+       sys.stdout.write("{0:>20s}".format(name))
        for size in sizes:
           sys.stdout.write("{0:10d}".format(code_jobs_bysize[name][size]))
        sys.stdout.write("\n")
-    sys.stdout.write("{0:>15s}".format("Other"))
+    sys.stdout.write("{0:>20s}".format("Unknown"))
     for size in sizes:
        sys.stdout.write("{0:>10d}".format(other_jobs_bysize[size]))
     sys.stdout.write("\n")
-    lines = "{0:>15s}".format("----")
+    lines = "{0:>20s}".format("----")
     for size in sizes:
        lines = lines + "{0:>10s}".format("-----")
     sys.stdout.write(lines + "\n")
-    sys.stdout.write("{0:>15s}".format("Total"))
+    sys.stdout.write("{0:>20s}".format("Total"))
     for size in sizes:
        sys.stdout.write("{0:>10d}".format(tot_jobs_bysize[size]))
     sys.stdout.write("\n")
-    lines = "{0:>15s}".format("====")
+    lines = "{0:>20s}".format("====")
     for size in sizes:
        lines = lines + "{0:>10s}".format("====")
     sys.stdout.write(lines + "\n")
+
+    # Aggregate results on code metadata
+    lang_nh = {}
+    lang_jobs = {}
+    for code in codes:
+       name = code.name
+       lang = code.pri_lang
+       if lang in lang_nh:
+          lang_nh[lang] += code_nh[name]
+          lang_jobs[lang] += code_jobs[name]
+       else:
+          lang_nh[lang] = code_nh[name]
+          lang_jobs[lang] = code_jobs[name]
+    # Loop over codes printing usage
+    sys.stdout.write("\n\nTotal language usage (ordered by node hours)\n")
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    for lang in sorted(lang_nh, key=lang_nh.get, reverse=True):
+       nhfrac = 100 * float(lang_nh[lang])/float(totnh)
+       jobfrac = 100 * float(lang_jobs[lang])/float(totjobs)
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(lang, lang_nh[lang], nhfrac, lang_jobs[lang], jobfrac))
+    nhfrac = 100 * float(other_nh)/float(totnh)
+    jobfrac = 100 * float(other_jobs)/float(totjobs)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+    nhfrac = 100 * float(totnh)/float(totnh)
+    jobfrac = 100 * float(totjobs)/float(totjobs)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+
+    # Aggregate results on type metadata
+    meta_nh = {}
+    meta_jobs = {}
+    for code in codes:
+       name = code.name
+       meta = code.type
+       if meta in meta_nh:
+          meta_nh[meta] += code_nh[name]
+          meta_jobs[meta] += code_jobs[name]
+       else:
+          meta_nh[meta] = code_nh[name]
+          meta_jobs[meta] = code_jobs[name]
+    # Loop over codes printing usage
+    sys.stdout.write("\n\nTotal type usage (ordered by node hours)\n")
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+       nhfrac = 100 * float(meta_nh[meta])/float(totnh)
+       jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+    nhfrac = 100 * float(other_nh)/float(totnh)
+    jobfrac = 100 * float(other_jobs)/float(totjobs)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+    nhfrac = 100 * float(totnh)/float(totnh)
+    jobfrac = 100 * float(totjobs)/float(totjobs)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+
+    # Aggregate results on type metadata
+    meta_nh = {}
+    meta_jobs = {}
+    for code in codes:
+       name = code.name
+       meta = code.area
+       if meta in meta_nh:
+          meta_nh[meta] += code_nh[name]
+          meta_jobs[meta] += code_jobs[name]
+       else:
+          meta_nh[meta] = code_nh[name]
+          meta_jobs[meta] = code_jobs[name]
+    # Loop over codes printing usage
+    sys.stdout.write("\n\nTotal area usage (ordered by node hours)\n")
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+       nhfrac = 100 * float(meta_nh[meta])/float(totnh)
+       jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+    nhfrac = 100 * float(other_nh)/float(totnh)
+    jobfrac = 100 * float(other_jobs)/float(totjobs)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+    nhfrac = 100 * float(totnh)/float(totnh)
+    jobfrac = 100 * float(totjobs)/float(totjobs)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    # Print out any other executables with usage over 1%
+    percent = thresh * float(totnh)
+    sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total node hours:\n".format(100*thresh))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}\n".format("Code", "Node Hours", "% Time"))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
+    other_tot = 0
+    for name in sorted(other_codes, key=other_codes.get, reverse=True):
+       if other_codes[name] > percent:
+          nhfrac = 100 * float(other_codes[name])/float(totnh)
+          other_tot += int(other_codes[name])
+          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}\n".format(name, other_codes[name], nhfrac))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}\n".format("----", "----------", "------"))
+    nhfrac = 100 * float(other_tot)/float(totnh)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}\n".format("Total", other_tot, nhfrac))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
+
 
     # Finish nicely
     exit(0)

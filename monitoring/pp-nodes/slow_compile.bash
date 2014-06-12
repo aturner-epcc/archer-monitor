@@ -7,7 +7,7 @@ ADDRESSEES="a.turner@epcc.ed.ac.uk"
 # The top level working directory
 TOPDIR=${PWD}
 # The prefix for the logfile
-LOGPREFIX="${TOPDIR}/log"
+LOGPREFIX="${ARCHER_MON_BASEDIR}/logs/log"
 # The name of the file to compile
 FILENAME=val.F90
 
@@ -15,7 +15,8 @@ FILENAME=val.F90
 
 
 # Record the date of test (Unix epoch time)
-TESTDATE=$( date +%s )
+TESTDATE=`date --rfc-3339=seconds`
+# TESTDATE=$( date +%s )
 # Set up a unique test directory to run the compiles in
 TESTDIR="${TOPDIR}/$$k"
 mkdir -p ${TESTDIR}
@@ -54,16 +55,13 @@ CCE_TIME=$( { /usr/bin/time -f %e bash --login -c "ftn -c val.F90 >/dev/null 2>&
 IFORT_TIME=$( { /usr/bin/time -f %e bash --login -c "module swap PrgEnv-cray PrgEnv-intel; /usr/bin/time -p ftn -c val.F90 >/dev/null 2>&1"; } 2>&1 )
 
 # Log the compile test data
-echo ${TESTDATE} $IFORT_TIME >> ${LOGPREFIX}.ifort
-echo ${TESTDATE} $CCE_TIME >> ${LOGPREFIX}.cce
+echo ${TESTDATE} $IFORT_TIME $CCE_TIME
 
 # Check to see if times exceed warning levels. If so email a warning
 if [[ $( echo "${IFORT_TIME}" ">" ${IFORT_WARNING} | bc ) == "1" ]] || [[ $( echo "${CCE_TIME}" ">" ${CCE_WARNING} | bc ) == "1" ]]; then
 
-  echo "Threshold times have been exceeded ... Sending a warning"
   for ADDRESS in ${ADDRESSEES}
   do
-    echo "Emailng ${ADDRESS}"
     echo "Warning the most recent tests of compile time have found times exceeding long term averages.
 The Intel compiler is recorded as taking ${IFORT_TIME}s compared to an average time of ${IFORT_AVG} seconds.
 The Cray compiler is recorded as taking ${CCE_TIME}s compared to an average time of ${CCE_AVG} seconds." | mailx -s "Warning compile times exceeding averages" ${ADDRESS}
