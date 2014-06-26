@@ -1,0 +1,9 @@
+#!/bin/bash
+#
+# Run the monitoring of the modules
+#
+# Depends on ARCHER_MON_BASEDIR being set
+#
+$ARCHER_MON_BASEDIR/monitoring/modules/get_defaults.bash
+$ARCHER_MON_BASEDIR/monitoring/modules/get_loaded.bash
+$ARCHER_MON_BASEDIR/monitoring/modules/get_avail.bash
