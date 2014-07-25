@@ -60,6 +60,12 @@ for line in lines:
    mem = tokens[5].strip('M')
    mem_fre.append(int(mem))
 
+# Compute the averages
+sys.stdout.write("     Average CPU Usage = {0:10.2f} CPU\n".format(np.average(cpu_us)))
+sys.stdout.write("  Average Memory Usage = {0:10.2f} GB\n".format(np.average(mem_usd)))
+sys.stdout.write("        Peak CPU Usage = {0:10.2f} CPU\n".format(np.amax(cpu_us)))
+sys.stdout.write("     Peak Memory Usage = {0:10.2f} GB\n".format(np.amax(mem_usd)))
+
 # Plot the data
 import matplotlib
 matplotlib.rcParams['font.size'] = 8
@@ -122,19 +128,40 @@ ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
 fig.autofmt_xdate()
 fig.savefig(filestem + "_1m.png")
 # Plot 1 quarter
-ax1.cla()
+# Average over the specified blocksize using numpy
+# Reshape the array into blocks of the specified size then
+# numpy with return an array of averages
+blocksize = 96
 x = np.array(cpu_us)
-n = x.size
-nmax = (n / 96) * 96
-use = np.reshape(x[:nmax], (96,-1))
+npoint = x.size
+ndiv = npoint / blocksize
+nmax = ndiv * blocksize
+use = np.reshape(x[:nmax], (blocksize,-1))
 avuse = np.average(use, axis=1)
-print "{0} {1} {2} {3}".format(n, nmax, len(date[::94]), avuse.size)
-ax1.plot(date[::94], avuse, 'r-', label='Load')
+ax1.cla()
+ax1.plot(date[:-blocksize:ndiv], avuse, 'r-', label='Load')
 ax1.set_xlim((one_quarter,now))
+ax1.set_ylim((0,80))
+ax1.set_ylabel("CPU / Avg. Load")
+ax1.tick_params(axis='x', labelbottom='off')
 ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+mt = np.reshape(mem_tot[:nmax], (blocksize,-1))
+amt = np.average(mt, axis=1)
+mu = np.reshape(mem_usd[:nmax], (blocksize,-1))
+amu = np.average(mu, axis=1)
+mf = np.reshape(mem_fre[:nmax], (blocksize,-1))
+amf = np.average(mf, axis=1)
+avuse = np.average(use, axis=1)
+ax2.cla()
+ax2.plot(date[:-blocksize:ndiv], amt, "b-", label='Total')
+ax2.plot(date[:-blocksize:ndiv], amu, "r-", label='Used')
+ax2.plot(date[:-blocksize:ndiv], amf, "g-", label='Free')
+ax2.set_ylim(bottom=0)
+ax2.set_ylabel("Mem / GB")
 ax2.set_xlim((one_quarter,now))
 ax2.xaxis.set_major_locator(dates.MinuteLocator(interval=8640))
 ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
+ax2.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 fig.autofmt_xdate()
 fig.savefig(filestem + "_1q.png")
 # Plot 1 year
