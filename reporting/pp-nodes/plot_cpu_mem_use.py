@@ -71,33 +71,33 @@ fig = plt.figure(1)
 
 fig.subplots_adjust(right=0.8, left=0.15)
 
-ax1 = plt.subplot(2, 1, 1)
-ax1.plot(date, cpu_us, 'r-', label='Load')
 # ax1.fill_between(date, 0, cpu_us, facecolor='red', alpha='0.5', label='Load')
+ax1 = plt.subplot(2, 1, 1)
 ax1.set_ylim((0,80))
 ax1.set_ylabel("CPU / Avg. Load")
-ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 ax1.tick_params(axis='x', labelbottom='off')
 
 ax2 = plt.subplot(2, 1, 2)
-ax2.plot(date, mem_tot, "b-", label='Total')
-ax2.plot(date, mem_usd, "r-", label='Used')
-ax2.plot(date, mem_fre, "g-", label='Free')
 #ax2.fill_between(date, 0, mem_tot, facecolor='blue', alpha='1.0', label='Total')
 #ax2.fill_between(date, 0, mem_usd, facecolor='red', alpha='1.0', label='Used')
 #ax2.fill_between(date, 0, mem_fre, facecolor='green', alpha='1.0', label='Free')
 ax2.set_ylim(bottom=0)
 ax2.set_ylabel("Mem / GB")
 
-ax2.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
 # ax2 = ax1.twinx()
 
 # Plot 1 day
+ax1.plot(date, cpu_us, 'r-', label='Load')
 ax1.set_xlim((one_day,now))
+ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+ax2.plot(date, mem_tot, "b-", label='Total')
+ax2.plot(date, mem_usd, "r-", label='Used')
+ax2.plot(date, mem_fre, "g-", label='Free')
 ax2.set_xlim((one_day,now))
 ax2.xaxis.set_major_locator(dates.MinuteLocator(interval=120))
 ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
+ax2.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 fig.autofmt_xdate()
 fig.savefig(filestem + "_1d.png")
 # Plot 2 days
@@ -122,7 +122,16 @@ ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
 fig.autofmt_xdate()
 fig.savefig(filestem + "_1m.png")
 # Plot 1 quarter
+ax1.cla()
+x = np.array(cpu_us)
+n = x.size
+nmax = (n / 96) * 96
+use = np.reshape(x[:nmax], (96,-1))
+avuse = np.average(use, axis=1)
+print "{0} {1} {2} {3}".format(n, nmax, len(date[::94]), avuse.size)
+ax1.plot(date[::94], avuse, 'r-', label='Load')
 ax1.set_xlim((one_quarter,now))
+ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 ax2.set_xlim((one_quarter,now))
 ax2.xaxis.set_major_locator(dates.MinuteLocator(interval=8640))
 ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
