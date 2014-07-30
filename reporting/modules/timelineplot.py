@@ -1,11 +1,27 @@
 #
-# Module with functions for plotting timelines from 
+# Module with functions for plotting timelines from 
 # monitoring data
 #
 
 from datetime import datetime
 import sys
 import os.path
+from glob import glob
+
+def get_filelist(dir, ext):
+    """
+    Get list of date files in the specified directory
+    """
+
+    files = []
+    if os.path.exists(dir):
+        files = glob(os.path.join(dir, '*.' + ext))
+    else:
+        sys.stderr.write("Directory does not exist: {1}".format(dir))
+        sys.exit(1)
+
+    return files
+
 
 def compute_timeline(interval, infile):
     """
@@ -28,6 +44,8 @@ def compute_timeline(interval, infile):
     # Loop over lines in the file
     icount = 0
     sum = 0
+    dates = []
+    timeline = []
     for line in datafile:
         if line.startswith('#'):
           continue
@@ -54,3 +72,23 @@ def compute_timeline(interval, infile):
     datafile.close()
 
     return dates, timeline
+
+def plot_timeline(dates, timeline, label, axislabel, outfile):
+    """
+    Plot a timeline
+    """
+
+    import matplotlib
+    matplotlib.rcParams['font.size'] = 8
+    matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+    from matplotlib import dates
+
+    fig = plt.figure(1)
+    ax = plt.subplot(1, 1, 1)
+    ax.set_ylabel(axislabel)
+    ax.plot(dates, timeline, 'r-')
+    ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
+    fig.autofmt_xdate()
+    fig.savefig(outfile)
+
