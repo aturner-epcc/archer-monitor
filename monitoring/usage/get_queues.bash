@@ -20,7 +20,7 @@ outfile="$ARCHER_MON_LOGDIR/queues/$DATE.standard"
 
 # Test that we have some data from job list
 if [ "${#joblist[@]}" == 0 ]; then
-   printf "%s %d %d %d\n" $TIME 0 0 0 #>> $outfile
+   printf "%s %d %d %d\n" $TIME 0 0 0 >> $outfile
    exit 0
 fi
 
@@ -65,6 +65,6 @@ do
    fi
 done
 
-printf "%s %d %d %d\n" $TIME $cpumr $cpumq $cpumh # >> $outfile
+printf "%s %d %d %d\n" $TIME $cpumr $cpumq $cpumh  >> $outfile
 
 exit 0
