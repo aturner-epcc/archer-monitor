@@ -65,6 +65,7 @@ if len(repperiod) < 1:
 
 # List of log files
 files = get_filelist(indir, 'usage')
+print files
 
 now = datetime.today()
 for curperiod in repperiod:
