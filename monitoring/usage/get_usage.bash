@@ -27,7 +27,7 @@ outfile="$ARCHER_MON_LOGDIR/usage/$DATE.usage"
 
 # Test that we have some data from job list
 if [ "${#apps[@]}" == 0 ]; then
-   printf "%s %d\n" $TIME -1 >> $outfile
+   printf "%s %d\n" $TIME 0 >> $outfile
    exit 0
 fi
 
