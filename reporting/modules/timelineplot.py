@@ -74,6 +74,61 @@ def compute_timeline(interval, infile):
 
     return dates, timeline
 
+def compute_multiple_timeline(ncol, interval, infile):
+    """
+    Return dates and a timeline from specified file averaged over the 
+    specified interval.
+    
+    Arguments
+        * ncol (Integer) - Number of columns of y-data to read
+        * interval (Integer) - The interval to average over
+        * infile (String) - The input file name
+    """
+
+    # Test if the file exists and open
+    datafile = None
+    if os.path.isfile(infile):
+        datafile = open(infile, 'r')
+    else:
+        sys.stderr.write("File does not exist: {1}".format(infile))
+        sys.exit(1)
+
+    # Loop over lines in the file
+    icount = 0
+    sum = [0] * ncol
+    dates = []
+    # Define an empty list of lists
+    timeline = [[] for x in xrange(0,ncol)]
+    for line in datafile:
+        if line.startswith('#'):
+          continue
+        line = line.rstrip()
+        tokens = line.split()
+
+        icount += 1
+        
+        for i in range(0, ncol):
+            sum[i] += int(tokens[i+2])
+ 
+        # If at the end of the interval then compute the mean
+        if icount == interval:
+            # Construct a time tuple from the date
+            timestring = tokens[0] + " " + tokens[1]
+            timestring = timestring.split('+')[0]
+            timetuple = datetime.strptime(timestring, "%Y-%m-%d %H:%M:%S")
+
+            dates.append(timetuple)
+   
+            for i in range(0, ncol):
+                timeline[i].append(float(sum[i])/interval)
+                sum[i] = 0
+
+            icount = 0
+
+    datafile.close()
+
+    return dates, timeline
+
 def plot_timeline(timelabels, timeline, datemin, datemax, label, axislabel, outfile):
     """
     Plot a timeline

@@ -16,7 +16,7 @@ IFS=$'\r\n' joblist=($(qstat -a))
 TIME=`date --rfc-3339=seconds`
 DATE=`date --rfc-3339=date`
 
-outfile="$ARCHER_MON_LOGDIR/queues/$DATE.standard"
+outfile="$ARCHER_MON_LOGDIR/queues/$DATE.queues"
 
 # Test that we have some data from job list
 if [ "${#joblist[@]}" == 0 ]; then
