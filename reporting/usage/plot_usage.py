@@ -85,6 +85,9 @@ for curperiod in repperiod:
             alldates.extend(dates)
             allusage.extend(usage)
 
+    for i in range(len(alldates)):
+        print alldates[i], allusage[i]
+
     imgfile = "{0}/{1}_{2}.png".format(outdir, filestem, curperiod)
     plot_timeline(alldates, allusage, startdate, now, 'Usage', 'Nodes', imgfile)
 
