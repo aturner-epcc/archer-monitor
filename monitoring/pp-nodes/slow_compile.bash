@@ -9,7 +9,7 @@ ADDRESSEES="a.turner@epcc.ed.ac.uk"
 # The top level working directory
 TOPDIR=${PWD}
 # The prefix for the logfile
-LOGPREFIX="${ARCHER_MON_BASEDIR}/logs"
+LOGPREFIX="${ARCHER_MON_LOGDIR}"
 # The name of the file to compile
 FILENAME=val.F90
 
