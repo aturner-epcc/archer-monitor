@@ -16,6 +16,7 @@ def get_filelist(dir, ext):
     files = []
     if os.path.exists(dir):
         files = glob(os.path.join(dir, '*.' + ext))
+        files.sort()
     else:
         sys.stderr.write("Directory does not exist: {1}".format(dir))
         sys.exit(1)
