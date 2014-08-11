@@ -73,7 +73,7 @@ def compute_timeline(interval, infile):
 
     return dates, timeline
 
-def plot_timeline(dates, timeline, label, axislabel, outfile):
+def plot_timeline(timelabels, timeline, datemin, datemax, label, axislabel, outfile):
     """
     Plot a timeline
     """
@@ -86,8 +86,12 @@ def plot_timeline(dates, timeline, label, axislabel, outfile):
 
     fig = plt.figure(1)
     ax = plt.subplot(1, 1, 1)
+    ax.cla()
     ax.set_ylabel(axislabel)
-    ax.plot(dates, timeline, 'r-')
+    ax.plot(timelabels, timeline, 'r-')
+    ax.fill_between(timelabels, 0, timeline, facecolor='r', alpha=0.25)
+    ax.set_xlim((datemin, datemax))
+    ax.set_ylim(bottom=0)
     ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
     fig.autofmt_xdate()
     fig.savefig(outfile)

@@ -55,6 +55,6 @@ do
    fi
 done
 
-printf "%s %d" $TIME $usednodes >> $outfile
+printf "%s %d\n" $TIME $usednodes >> $outfile
 
 exit 0
