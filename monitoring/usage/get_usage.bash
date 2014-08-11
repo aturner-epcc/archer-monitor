@@ -19,16 +19,17 @@ APSTAT=apstat
 # Get the lines from the APSTAT command into an array
 IFS=$'\r\n' apps=($($APSTAT))
 
-# Test that we have some data from job list
-if [ "${#apps[@]}" == 0 ]; then
-   exit 1
-fi
-
 # Write the start indicator and timestamp 
 TIME=`date --rfc-3339=seconds`
 DATE=`date --rfc-3339=date`
 
 outfile="$ARCHER_MON_LOGDIR/usage/$DATE.usage"
+
+# Test that we have some data from job list
+if [ "${#apps[@]}" == 0 ]; then
+   printf "%s %d\n" $TIME -1 >> $outfile
+   exit 0
+fi
 
 # Initialise flag to indicate if we are in application list
 inapps=0
