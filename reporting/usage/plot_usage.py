@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # Plot the hostorical usage level of the machine. Depends on the
-# ARCHER_MON_BASEDIR environment variable being set and on 
+# ARCHER_MON_LOGDIR, ARCHER_MON_OUTDIR environment variables being set and on 
 # PYTHONPATH including $ARCHER_MON_BASEDIR/reporting/modules
 #
 # Usage example:
@@ -21,9 +21,8 @@ import os
 ###############################################################
 # Configuration section
 ###############################################################
-base_dir = os.environ['ARCHER_MON_BASEDIR']
-indir = base_dir + '/logs/usage'
-outdir = base_dir + '/output/usage'
+indir = os.environ['ARCHER_MON_LOGDIR'] + '/usage'
+outdir = os.environ['ARCHER_MON_OUTDIR'] + '/usage'
 
 # Valid reporting periods
 periods = ['1d', '2d', '1w', '1m', '1q', '1y']

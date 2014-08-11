@@ -8,7 +8,7 @@ DATE=`date --rfc-3339=date`
 list=`module -t list 2>&1 | grep -v Currently`
 
 # File name
-outfile="$ARCHER_MON_BASEDIR/logs/modules/$DATE.list"
+outfile="$ARCHER_MON_LOGDIR/modules/$DATE.list"
 
 # Print data:
 echo "# ++ $TIME" > $outfile

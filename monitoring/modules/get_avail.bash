@@ -8,7 +8,7 @@ DATE=`date --rfc-3339=date`
 list=`module -t avail 2>&1`
 
 # File name
-outfile="$ARCHER_MON_BASEDIR/logs/modules/$DATE.avail"
+outfile="$ARCHER_MON_LOGDIR/modules/$DATE.avail"
 
 # Print data:
 echo "# ++ $TIME" > $outfile

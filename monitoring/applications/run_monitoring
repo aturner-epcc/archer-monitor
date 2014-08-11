@@ -4,4 +4,4 @@
 #
 # Depends on ARCHER_MON_BASEDIR being set
 #
-$ARCHER_MON_BASEDIR/monitoring/applications/running_applications.bash >> $ARCHER_MON_BASEDIR/logs/running_applications.log
+$ARCHER_MON_BASEDIR/monitoring/applications/running_applications.bash >> $ARCHER_MON_LOGDIR/running_applications.log

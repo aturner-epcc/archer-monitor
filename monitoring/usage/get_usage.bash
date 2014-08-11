@@ -28,7 +28,7 @@ fi
 TIME=`date --rfc-3339=seconds`
 DATE=`date --rfc-3339=date`
 
-outfile="$ARCHER_MON_BASEDIR/logs/usage/$DATE.usage"
+outfile="$ARCHER_MON_LOGDIR/usage/$DATE.usage"
 
 # Initialise flag to indicate if we are in application list
 inapps=0
