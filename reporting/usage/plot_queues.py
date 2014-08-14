@@ -24,7 +24,7 @@ import os
 ncol = 3 # This is the number of columns of y-data in the log files
 
 indir = os.environ['ARCHER_MON_LOGDIR'] + '/queues'
-outdir = os.environ['ARCHER_MON_OUTDIR'] + '/queues'
+outdir = os.environ['ARCHER_MON_OUTDIR'] + '/usage'
 
 # Valid reporting periods
 periods = ['1d', '2d', '1w', '1m', '1q', '1y']
