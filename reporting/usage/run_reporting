@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+# Plot usage data
+#
+# Depends on ARCHER_MON_BASEDIR being set
+#
+python $ARCHER_MON_BASEDIR/reporting/usage/plot_usage.py $* usage
+python $ARCHER_MON_BASEDIR/reporting/usage/plot_queues.py $* queues

@@ -197,6 +197,8 @@ def main(argv):
           line = line.rstrip()
           tokens = line.split()
 
+          if len(tokens) < 8:
+              continue
           jobid = tokens[0]
           user = tokens[2]
           nodes = tokens[4]
