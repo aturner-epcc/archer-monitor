@@ -21,12 +21,17 @@ IFS=$'\r\n' apps=($($APSTAT))
 
 # Test that we have some data from job list
 if [ "${#apps[@]}" == 0 ]; then
+   print "ERROR: No application data found"
    exit 1
 fi
 
 # Write the start indicator and timestamp 
 TIME=`date --rfc-3339=seconds`
-printf "__START %s\n" $TIME
+DATE=`date --rfc-3339=date`
+
+outfile="$ARCHER_MON_LOGDIR/applications/$DATE.apstat"
+
+printf "__START %s\n" $TIME >> $outfile
 
 # Initialise flag to indicate if we are in application list
 inapps=0
@@ -46,12 +51,12 @@ do
          inapps=0
       else 
          # Print this app line
-         echo "$line"
+         echo "$line" >> $outfile
       fi
    fi
 done
 
 # Write the end indicator
-printf "__END %s\n" $TIME
+printf "__END %s\n" $TIME >> $outfile
 
 exit 0
