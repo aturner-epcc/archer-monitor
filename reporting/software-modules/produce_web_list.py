@@ -26,7 +26,7 @@ print filename
 if os.path.isfile(filename):
    datafile = open(filename, 'r')
 else:
-   sys.stderr.write("File does not exist: {1}".format(filename))
+   sys.stderr.write("File does not exist: {0}".format(filename))
    sys.exit(1)
 
 # Loop over lines in the file
