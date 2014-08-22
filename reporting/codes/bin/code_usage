@@ -7,6 +7,7 @@
 #===============================================================
 #
 #===============================================================
+# v0.2 - Read from separate log files (one for each day)
 # v0.1 - Initial version
 #===============================================================
 #
@@ -36,10 +37,12 @@ OPTIONS
 -h,--help                Show this help.
 """
 __author__ = 'Andrew Turner, EPCC, The University of Edinburgh'
-__version__ = '0.1'
+__version__ = '0.2'
 
 # Import the required modules
 from code_def import CodeDef
+from timelineplot import get_filelist
+from datetime import datetime, timedelta
 import err_handle as error
 import sys
 import os
@@ -154,16 +157,19 @@ def main(argv):
     starttime = 0
     endtime = time.mktime(time.gmtime())
 
-    # Read the name of the logfile and open it
-    logfilename = argv[0]
-    sys.stdout.write("Analysing data in: {0}\n".format(logfilename))
-    logFile = None
-    try:
-        logFile = open(logfilename, "r")
-    except IOError as (errno, strerror):
-        error.handleError("Opening output file: {0}; {1}".format(logfilename, strerror), errno)
+    # Read the name of the logfile directory and open it
+    indir = argv[0]
+    sys.stdout.write("Analysing data in: {0}\n".format(indir))
+    files = get_filelist(indir, 'apstat')
 
+    now = datetime.today()
 
+    for file in files:
+     filename = os.path.basename(file)
+        filedate = filename.split('.')[0]
+        fdate = datetime.strptime(filedate, "%Y-%m-%d")
+        if fdate >= startfile:
+           # This is where we will read and process data
 
     # Initialise variables
     intimerange = False
