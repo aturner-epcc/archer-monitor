@@ -2,12 +2,14 @@
 
 : ${ARCHER_MON_BASEDIR:?"Environment variable not set"}
 
+TIME=`date --rfc-3339=seconds`
+
 # Check if components are specified
 if (( $# > 0 )); then
    # Loop over command line arguments, running commands
    for subdir in "$@"
    do
-      echo "Running: $ARCHER_MON_BASEDIR/monitoring/$subdir"
+      echo "${TIME}: Running: $ARCHER_MON_BASEDIR/monitoring/$subdir"
       $ARCHER_MON_BASEDIR/monitoring/$subdir/run_monitoring
    done
 else 
@@ -15,7 +17,7 @@ else
    # Loop over monitoring subdirectories running the monitoring
    for subdir in $(find $ARCHER_MON_BASEDIR/monitoring -mindepth 1 -maxdepth 1 -type d)
    do
-      echo "Running: $subdir"
+      echo "${TIME}: Running: $subdir"
       $subdir/run_monitoring
    done
 fi
