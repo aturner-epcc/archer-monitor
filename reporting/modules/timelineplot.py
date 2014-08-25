@@ -188,7 +188,7 @@ def plot_multiple_timeline(timelabels, timeline, datemin, datemax,
     ax.set_xlim((datemin, datemax))
     if ymax is not None:
         ax.set_ylim((0, ymax))
-    else
+    else:
         ax.set_ylim(bottom=0)
     ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
     fig.autofmt_xdate()
