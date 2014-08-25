@@ -24,6 +24,9 @@ import os
 indir = os.environ['ARCHER_MON_LOGDIR'] + '/usage'
 outdir = os.environ['ARCHER_MON_OUTDIR'] + '/usage'
 
+# Maximum number of nodes on the system
+maxnodes = 3008
+
 # Valid reporting periods
 periods = ['1d', '2d', '1w', '1m', '1q', '1y']
 
@@ -86,7 +89,8 @@ for curperiod in repperiod:
             allusage.extend(usage)
 
     imgfile = "{0}/{1}_{2}.png".format(outdir, filestem, curperiod)
-    plot_timeline(alldates, allusage, startdate, now, 'Usage', 'Nodes', imgfile)
+    plot_timeline(alldates, allusage, startdate, now, 'Usage', 'Nodes',
+                  imgfile, ymax=maxnodes)
 
 sys.exit(0)
 

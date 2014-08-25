@@ -153,7 +153,8 @@ def plot_timeline(timelabels, timeline, datemin, datemax, label, axislabel, outf
     fig.autofmt_xdate()
     fig.savefig(outfile)
 
-def plot_multiple_timeline(timelabels, timeline, datemin, datemax, axislabel, titles, outfile, totals=True):
+def plot_multiple_timeline(timelabels, timeline, datemin, datemax, 
+                           axislabel, titles, outfile, totals=True, ymax=None):
     """
     Plot a timeline
     """
@@ -185,7 +186,10 @@ def plot_multiple_timeline(timelabels, timeline, datemin, datemax, axislabel, ti
         ax.fill_between(timelabels, 0, total, facecolor='grey', alpha=0.25)
     ax.legend()
     ax.set_xlim((datemin, datemax))
-    ax.set_ylim(bottom=0)
+    if ymax is not None:
+        ax.set_ylim((0, ymax))
+    else
+        ax.set_ylim(bottom=0)
     ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
     fig.autofmt_xdate()
     fig.savefig(outfile)
