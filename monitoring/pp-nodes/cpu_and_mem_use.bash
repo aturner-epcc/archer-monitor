@@ -15,5 +15,5 @@ freetokens=($freelines)
 
 # Print data:
 #          CPU                                             Memory
-#          User         System       Idle                  Total            Used             Free
-echo $TIME ${uptokens[11]} ${freetokens[1]} ${freetokens[9]} ${freetokens[10]}
+#          User         System       Idle                  Total            Used             Free       Cache
+echo $TIME ${uptokens[11]} ${freetokens[1]} ${freetokens[9]} ${freetokens[10]} ${freetokens[6]}
