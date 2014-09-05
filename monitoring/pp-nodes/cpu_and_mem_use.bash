@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# Get current date/time
+# Get current time, date and host
 TIME=`date --rfc-3339=seconds`
+DATE=`date --rfc-3339=date`
+HOST=`hostname`
+
+outfile="$ARCHER_MON_LOGDIR/nodes/${DATE}.${HOST}.load"
 
 # Get the appropriate lines from uptime
 uplines=`uptime`
@@ -16,4 +20,4 @@ freetokens=($freelines)
 # Print data:
 #          CPU                                             Memory
 #          User         System       Idle                  Total            Used             Free       Cache
-echo $TIME ${uptokens[11]} ${freetokens[1]} ${freetokens[9]} ${freetokens[10]} ${freetokens[6]}
+echo $TIME ${uptokens[11]} ${freetokens[1]} ${freetokens[9]} ${freetokens[10]} ${freetokens[6]} >> $outfile

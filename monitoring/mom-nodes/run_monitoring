@@ -4,8 +4,8 @@
 #
 # Depends on ARCHER_MON_BASEDIR being set
 #
-ssh mom1 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash" >> $ARCHER_MON_LOGDIR/mom1_load.log
-ssh mom2 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash" >> $ARCHER_MON_LOGDIR/mom2_load.log
-ssh mom3 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash" >> $ARCHER_MON_LOGDIR/mom3_load.log
-ssh mom4 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash" >> $ARCHER_MON_LOGDIR/mom4_load.log
-ssh mom5 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash" >> $ARCHER_MON_LOGDIR/mom5_load.log
+ssh mom1 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash"
+ssh mom2 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash"
+ssh mom3 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash"
+ssh mom4 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash"
+ssh mom5 "$ARCHER_MON_BASEDIR/monitoring/mom-nodes/cpu_and_mem_use.bash"
