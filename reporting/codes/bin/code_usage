@@ -157,128 +157,133 @@ def main(argv):
     starttime = 0
     endtime = time.mktime(time.gmtime())
 
+    now = datetime.today()
+
+    startfile = datetime.utcfromtimestamp(0)
+    startdate = datetime.utcfromtimestamp(0)
+
     # Read the name of the logfile directory and open it
     indir = argv[0]
     sys.stdout.write("Analysing data in: {0}\n".format(indir))
     files = get_filelist(indir, 'apstat')
 
-    now = datetime.today()
 
     for file in files:
      filename = os.path.basename(file)
-        filedate = filename.split('.')[0]
-        fdate = datetime.strptime(filedate, "%Y-%m-%d")
-        if fdate >= startfile:
-           # This is where we will read and process data
+     print filename
+     filedate = filename.split('.')[0]
+     fdate = datetime.strptime(filedate, "%Y-%m-%d")
+     if fdate >= startfile:
+         # This is where we will read and process data
+         logFile = open(file, "r")
 
-    # Initialise variables
-    intimerange = False
-    # Loop over lines in the file reading them
-    for line in logFile:
+         # Initialise variables
+         intimerange = False
+         # Loop over lines in the file reading them
+         for line in logFile:
 
-       if re.match("__START", line) is not None:
-          timeline = line.rstrip()
-          tokens = timeline.split()
-          thistime = int(time.mktime(time.strptime(tokens[1], "%Y-%m-%d")))
-          # If we are past the end time then finish the loop
-          if thistime > endtime:
-             sys.stdout.write("Finished at: {0}".format(timeline))
-             break
-          elif thistime >= starttime:
-             if intimerange == False:
-                sys.stdout.write("Starting at: {0}\n".format(timeline))
-             intimerange = True
-             continue
-       # End of if start block match
+            if re.match("__START", line) is not None:
+               timeline = line.rstrip()
+               tokens = timeline.split()
+               thistime = int(time.mktime(time.strptime(tokens[1], "%Y-%m-%d")))
+               # If we are past the end time then finish the loop
+               if thistime > endtime:
+                  sys.stdout.write("Finished at: {0}".format(timeline))
+                  break
+               elif thistime >= starttime:
+                  intimerange = True
+                  continue
+            # End of if start block match
 
-       # If we are in the time range then accumulate data
-       if intimerange:
-          
-          # Skip the end indicator
-          if re.match("__END", line) is not None:
-             continue
+            # If we are in the time range then accumulate data
+            if intimerange:
+               
+               # Skip the end indicator
+               if re.match("__END", line) is not None:
+                  continue
 
 
-          # Extract the useful information from the log
-          line = line.rstrip()
-          tokens = line.split()
+               # Extract the useful information from the log
+               line = line.rstrip()
+               tokens = line.split()
 
-          if len(tokens) < 8:
-              continue
-          jobid = tokens[0]
-          user = tokens[2]
-          nodes = tokens[4]
-          exename = tokens[7]
+               if len(tokens) < 8:
+                   continue
+               jobid = tokens[0]
+               user = tokens[2]
+               nodes = tokens[4]
+               exename = tokens[7]
 
-          # Add this number of hours to total
-          totnh += int(nodes)
+               # Add this number of hours to total
+               totnh += int(nodes)
 
-          # Check we have not already seen this job
-          countjob = True
-          if jobid in matchedjobs:
-             countjob = False
-          else:
-             totjobs += 1
-             matchedjobs[jobid] = True
+               # Check we have not already seen this job
+               countjob = True
+               if jobid in matchedjobs:
+                  countjob = False
+               else:
+                  totjobs += 1
+                  matchedjobs[jobid] = True
 
-          # Check if we have already seen this user
-          if user not in users:
-             users = "{0} {1}".format(users, user)
-             totusers += 1
+               # Check if we have already seen this user
+               if user not in users:
+                  users = "{0} {1}".format(users, user)
+                  totusers += 1
 
-          # Loop over codes, storing this job
-          matched = False
-          for code in codes:
-             name = code.name
-             if re.search(code_regexp[name], exename):
-                matched = True
-                code_nh[name] += int(nodes)
-                if countjob: code_jobs[name] += 1
-                if user not in code_users[name]:
-                   code_users[name] = "{0} {1}".format(code_users[name], user)
-                   code_num_users[name] += 1
-                for size in sizes:
-                   if int(nodes) <= size:
-                      code_nh_bysize[name][size] += int(nodes)
-                      tot_nh_bysize[size] += int(nodes)
-                      if countjob:
-                         code_jobs_bysize[name][size] += 1
-                         tot_jobs_bysize[size] += 1
-                      break
-          # End of loop over codes
+               # Loop over codes, storing this job
+               matched = False
+               for code in codes:
+                  name = code.name
+                  if re.search(code_regexp[name], exename):
+                     matched = True
+                     code_nh[name] += int(nodes)
+                     if countjob: code_jobs[name] += 1
+                     if user not in code_users[name]:
+                        code_users[name] = "{0} {1}".format(code_users[name], user)
+                        code_num_users[name] += 1
+                     for size in sizes:
+                        if int(nodes) <= size:
+                           code_nh_bysize[name][size] += int(nodes)
+                           tot_nh_bysize[size] += int(nodes)
+                           if countjob:
+                              code_jobs_bysize[name][size] += 1
+                              tot_jobs_bysize[size] += 1
+                           break
+               # End of loop over codes
 
-          # Store if not matched to defined code
-          if not matched:
-             other_nh += int(nodes)
-             if exename in other_codes:
-                other_codes[exename] += int(nodes)
-             else:
-                other_codes[exename] = int(nodes)
-             if countjob: other_jobs += 1
-             if user not in other_users:
-                other_users = "{0} {1}".format(other_users, user)
-                other_num_users += 1
-             for size in sizes:
-                if int(nodes) <= size:
-                   other_nh_bysize[size] += int(nodes)
-                   tot_nh_bysize[size] += int(nodes)
-                   if countjob:
-                      other_jobs_bysize[size] += 1
-                      tot_jobs_bysize[size] += 1
-                   break
+               # Store if not matched to defined code
+               if not matched:
+                  other_nh += int(nodes)
+                  if exename in other_codes:
+                     other_codes[exename] += int(nodes)
+                  else:
+                     other_codes[exename] = int(nodes)
+                  if countjob: other_jobs += 1
+                  if user not in other_users:
+                     other_users = "{0} {1}".format(other_users, user)
+                     other_num_users += 1
+                  for size in sizes:
+                     if int(nodes) <= size:
+                        other_nh_bysize[size] += int(nodes)
+                        tot_nh_bysize[size] += int(nodes)
+                        if countjob:
+                           other_jobs_bysize[size] += 1
+                           tot_jobs_bysize[size] += 1
+                        break
  
-       # End of if intimerange
+            # End of if intimerange
 
-    # End of loop over logfile lines
-    
-    # Close the logfile
-    logFile.close()
+         # End of loop over logfile lines
+         
+         # Close the logfile
+         logFile.close()
+    # End of loop over logfiles
 
     totnh = 0
     totjobs = 0
     for name in sorted(code_nh, key=code_nh.get, reverse=True):
-       totnh = totnh + code_nh[name]
-       totjobs = totjobs + code_jobs[name]
+        totnh = totnh + code_nh[name]
+        totjobs = totjobs + code_jobs[name]
     totnh = totnh + other_nh
     totjobs = totjobs + other_jobs
 
@@ -402,20 +407,20 @@ def main(argv):
           meta_jobs[meta] = code_jobs[name]
     # Loop over codes printing usage
     sys.stdout.write("\n\nTotal type usage (ordered by node hours)\n")
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
     for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
        nhfrac = 100 * float(meta_nh[meta])/float(totnh)
        jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
     nhfrac = 100 * float(other_nh)/float(totnh)
     jobfrac = 100 * float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
     nhfrac = 100 * float(totnh)/float(totnh)
     jobfrac = 100 * float(totjobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Aggregate results on type metadata
     meta_nh = {}
@@ -431,35 +436,35 @@ def main(argv):
           meta_jobs[meta] = code_jobs[name]
     # Loop over codes printing usage
     sys.stdout.write("\n\nTotal area usage (ordered by node hours)\n")
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
     for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
        nhfrac = 100 * float(meta_nh[meta])/float(totnh)
        jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
     nhfrac = 100 * float(other_nh)/float(totnh)
     jobfrac = 100 * float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
     nhfrac = 100 * float(totnh)/float(totnh)
     jobfrac = 100 * float(totjobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
     # Print out any other executables with usage over 1%
     percent = thresh * float(totnh)
     sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total node hours:\n".format(100*thresh))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}\n".format("Code", "Node Hours", "% Time"))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("Code", "Node Hours", "% Time"))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
     other_tot = 0
     for name in sorted(other_codes, key=other_codes.get, reverse=True):
        if other_codes[name] > percent:
           nhfrac = 100 * float(other_codes[name])/float(totnh)
           other_tot += int(other_codes[name])
-          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}\n".format(name, other_codes[name], nhfrac))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}\n".format("----", "----------", "------"))
+          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format(name, other_codes[name], nhfrac))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("----", "----------", "------"))
     nhfrac = 100 * float(other_tot)/float(totnh)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}\n".format("Total", other_tot, nhfrac))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format("Total", other_tot, nhfrac))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
 
 
     # Finish nicely
