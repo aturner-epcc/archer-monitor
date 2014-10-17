@@ -6,3 +6,4 @@
 #
 $ARCHER_MON_BASEDIR/monitoring/usage/get_usage.bash
 $ARCHER_MON_BASEDIR/monitoring/usage/get_queues.bash
+$ARCHER_MON_BASEDIR/monitoring/usage/get_low.bash
