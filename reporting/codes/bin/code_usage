@@ -7,6 +7,7 @@
 #===============================================================
 #
 #===============================================================
+# v0.3 - Statistics on code usage over time
 # v0.2 - Read from separate log files (one for each day)
 # v0.1 - Initial version
 #===============================================================
@@ -37,7 +38,7 @@ OPTIONS
 -h,--help                Show this help.
 """
 __author__ = 'Andrew Turner, EPCC, The University of Edinburgh'
-__version__ = '0.2'
+__version__ = '0.3'
 
 # Import the required modules
 from code_def import CodeDef
@@ -72,8 +73,10 @@ def main(argv):
     # Global configuration section
     #=======================================================
     rootDir = os.environ['ARCHER_MON_BASEDIR']
+    outDir = "/home/z01/z01/aturner"
     sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
     thresh = 0.005
+    day_interval = 7
 
     #=======================================================
     # Read any code definitions
@@ -113,6 +116,8 @@ def main(argv):
     other_jobs = 0
     other_jobs_bysize = {}
     other_codes = {}
+    code_nh_bysize = {}
+    code_jobs_bysize = {}
     for size in sizes:
        tot_nh_bysize[size] = 0
        tot_jobs_bysize[size] = 0
@@ -125,33 +130,35 @@ def main(argv):
        code_jobs[name] = 0
        code_users[name] = ''
        code_num_users[name] = 0
-       for size in sizes:
-          # This is funky Python syntax for defining a 2D dict
-          code_nh_bysize[name] = code_nh_bysize.get(name, {})
-          code_nh_bysize[name][size] = 0
-          code_jobs_bysize[name] = code_jobs_bysize.get(name, {})
-          code_jobs_bysize[name][size] = 0
-       
+#       for size in sizes:
+#          # This is funky Python syntax for defining a 2D dict
+#          code_nh_bysize[name] = code_nh_bysize.get(name, {})
+#          code_nh_bysize[name][size] = 0
+#          code_jobs_bysize[name] = code_jobs_bysize.get(name, {})
+#          code_jobs_bysize[name][size] = 0
+#       code_nh_bysize[name] = {}
+#       code_jobs_bysize[name] = {}
 
     #=======================================================
     # Command line options
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "n:N:d:A:t:o:r:b:q:j:c:plshi", \
-                      ["tasks=", "tasks-per-node=", "threads=", "account=", \
-                      "job-time=", "output-file=", "resource=", "batch=", "queue=", \
-                      "job-name=", "code=", "force-parallel", "list", "submit", \
-                      "help", "info"])
+        opts, args = getopt.getopt(argv, "g:h", ["group=", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
     # Parse the command-line options
+    byuser = False
+    userlist = None
     for opt, arg in opts:
+        if opt in ("-g", "--group"):
+            print "Reading user list from " + arg
+            userlist = open(arg, 'r').read()
+            byuser = True
         if opt in ("-h", "--help"):
             printHelp(rootDir)
             exit(0)
-
 
     # Get the start and end times
     starttime = 0
@@ -163,19 +170,50 @@ def main(argv):
     startdate = datetime.utcfromtimestamp(0)
 
     # Read the name of the logfile directory and open it
-    indir = argv[0]
+    indir = args[0]
     sys.stdout.write("Analysing data in: {0}\n".format(indir))
     files = get_filelist(indir, 'apstat')
 
+    # Initialise the arrays for storing the time sequence
+    datearray = []
+    meanjobsize =[]
+    other_meanjob = []
+    code_meanjob = {}
+    for code in codes:
+       name = code.name
+       code_meanjob[name] = []
 
+    daycounter = 0
+    nfilejobs = 0
+    nfilenodeh = 0
+    nfilenodehsq = 0
+    code_filenh = {}
+    code_filenhsq = {}
+    for code in codes:
+       name = code.name
+       code_filenh[name] = 0 
+       code_filenhsq[name] = 0
+    other_filenh = 0
+    other_filenhsq = 0
     for file in files:
      filename = os.path.basename(file)
-     print filename
      filedate = filename.split('.')[0]
      fdate = datetime.strptime(filedate, "%Y-%m-%d")
      if fdate >= startfile:
          # This is where we will read and process data
          logFile = open(file, "r")
+
+         # Zero counters for timeline
+         if daycounter == 0:
+            nfilejobs = 0
+            nfilenodeh = 0
+            nfilenodehsq = 0
+            for code in codes:
+               name = code.name
+               code_filenh[name] = 0 
+               code_filenhsq[name] = 0
+            other_filenh = 0
+            other_filenhsq = 0
 
          # Initialise variables
          intimerange = False
@@ -214,62 +252,105 @@ def main(argv):
                nodes = tokens[4]
                exename = tokens[7]
 
-               # Add this number of hours to total
-               totnh += int(nodes)
-
-               # Check we have not already seen this job
+               # We may need to test if we are counting this job
                countjob = True
-               if jobid in matchedjobs:
-                  countjob = False
-               else:
-                  totjobs += 1
-                  matchedjobs[jobid] = True
-
-               # Check if we have already seen this user
-               if user not in users:
-                  users = "{0} {1}".format(users, user)
-                  totusers += 1
-
-               # Loop over codes, storing this job
-               matched = False
-               for code in codes:
-                  name = code.name
-                  if re.search(code_regexp[name], exename):
-                     matched = True
-                     code_nh[name] += int(nodes)
-                     if countjob: code_jobs[name] += 1
-                     if user not in code_users[name]:
-                        code_users[name] = "{0} {1}".format(code_users[name], user)
-                        code_num_users[name] += 1
-                     for size in sizes:
-                        if int(nodes) <= size:
-                           code_nh_bysize[name][size] += int(nodes)
-                           tot_nh_bysize[size] += int(nodes)
-                           if countjob:
-                              code_jobs_bysize[name][size] += 1
-                              tot_jobs_bysize[size] += 1
-                           break
-               # End of loop over codes
-
-               # Store if not matched to defined code
-               if not matched:
-                  other_nh += int(nodes)
-                  if exename in other_codes:
-                     other_codes[exename] += int(nodes)
+               if byuser:
+                  # Space added to try and counter substring username matches
+                  if " " + user in userlist:
+                     countjob = True
                   else:
-                     other_codes[exename] = int(nodes)
-                  if countjob: other_jobs += 1
-                  if user not in other_users:
-                     other_users = "{0} {1}".format(other_users, user)
-                     other_num_users += 1
-                  for size in sizes:
-                     if int(nodes) <= size:
-                        other_nh_bysize[size] += int(nodes)
-                        tot_nh_bysize[size] += int(nodes)
+                     countjob = False
+
+               # This is needed in case we are filtering by user
+               if countjob:
+                  # Add this number of hours to total
+                  totnh += int(nodes)
+
+                  # Check we have not already seen this job
+                  countjob = True
+                  if jobid in matchedjobs:
+                     countjob = False
+                  else:
+                     totjobs += 1
+                     matchedjobs[jobid] = True
+                     nfilejobs += 1
+                     nfilenodehsq += int(nodes) * int(nodes)
+                     nfilenodeh += int(nodes)
+   
+                  # Check if we have already seen this user
+                  if user not in users:
+                     users = "{0} {1}".format(users, user)
+                     totusers += 1
+   
+                  # Loop over codes, storing this job
+                  matched = False
+                  for code in codes:
+                     name = code.name
+                     if re.search(code_regexp[name], exename):
+                        matched = True
+                        code_nh[name] += int(nodes)
+                        if countjob: code_jobs[name] += 1
+                        if user not in code_users[name]:
+                           code_users[name] = "{0} {1}".format(code_users[name], user)
+                           code_num_users[name] += 1
+   #                     for size in sizes:
+   #                        if int(nodes) <= size:
+   #                           code_nh_bysize[name][size] += int(nodes)
+   #                           tot_nh_bysize[size] += int(nodes)
+   #                           if countjob:
+   #                              code_jobs_bysize[name][size] += 1
+   #                              tot_jobs_bysize[size] += 1
+   #                           break
+                        code_filenh[name] += int(nodes)
+                        code_filenhsq[name] += int(nodes)*int(nodes)
+                        if (name, nodes) in code_nh_bysize:
+                           code_nh_bysize[(name, nodes)] += int(nodes)
+                           tot_nh_bysize[nodes] += int(nodes)
+                           if countjob:
+                              code_jobs_bysize[(name, nodes)] += 1
+                              tot_jobs_bysize[nodes] += 1
+                        else:
+                           code_nh_bysize[(name, nodes)] = int(nodes)
+                           tot_nh_bysize[nodes] = int(nodes)
+                           if countjob:
+                              code_jobs_bysize[(name, nodes)] = 1
+                              tot_jobs_bysize[nodes] = 1
+                  # End of loop over codes
+   
+                  # Store if not matched to defined code
+                  if not matched:
+                     other_nh += int(nodes)
+                     if exename in other_codes:
+                        other_codes[exename] += int(nodes)
+                     else:
+                        other_codes[exename] = int(nodes)
+                     if countjob: other_jobs += 1
+                     if user not in other_users:
+                        other_users = "{0} {1}".format(other_users, user)
+                        other_num_users += 1
+   #                  for size in sizes:
+   #                     if int(nodes) <= size:
+   #                        other_nh_bysize[size] += int(nodes)
+   #                        tot_nh_bysize[size] += int(nodes)
+   #                        if countjob:
+   #                           other_jobs_bysize[size] += 1
+   #                           tot_jobs_bysize[size] += 1
+   #                        break
+                     other_filenh += int(nodes)
+                     other_filenhsq += int(nodes)*int(nodes)
+                     if nodes in other_nh_bysize:
+                        other_nh_bysize[nodes] += int(nodes)
+                        tot_nh_bysize[nodes] += int(nodes)
                         if countjob:
                            other_jobs_bysize[size] += 1
                            tot_jobs_bysize[size] += 1
-                        break
+                     else:
+                        other_nh_bysize[nodes] = int(nodes)
+                        tot_nh_bysize[nodes] = int(nodes)
+                        if countjob:
+                           other_jobs_bysize[nodes] =  1
+                           tot_jobs_bysize[nodes] = 1
+                # End of if countjob
  
             # End of if intimerange
 
@@ -277,7 +358,54 @@ def main(argv):
          
          # Close the logfile
          logFile.close()
+
+         daycounter += 1
+         if daycounter == day_interval:
+            datearray.append(fdate)
+            if nfilenodeh > 0:
+               mjobsize = float(nfilenodehsq)/float(nfilenodeh)
+               meanjobsize.append(mjobsize)
+            else:
+               meanjobsize.append(0.0)
+            for code in codes:
+               name = code.name
+               if code_filenh[name] > 0:
+                  code_meanjob[name].append(float(code_filenhsq[name])/float(code_filenh[name]))
+               else:
+                  code_meanjob[name].append(0.0)
+            if other_filenh > 0:
+               other_meanjob.append(float(other_filenhsq)/float(other_filenh))
+            else:
+               other_meanjob.append(0.0)
+            print fdate, nfilenodeh, nfilejobs, mjobsize
+            daycounter = 0
+
     # End of loop over logfiles
+
+    # Get list of the top 10 codes by node hours
+    top10 = [k for k in sorted(code_nh, key=code_nh.get, reverse=True)[:9]]
+
+    # Plot a time profile of the overall mean job size
+    import matplotlib
+    matplotlib.rcParams['font.size'] = 8
+    matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+    import numpy as np
+    from matplotlib import dates
+
+    fig = plt.figure(1)
+    ax = plt.subplot(1, 1, 1)
+    ax.cla()
+    ax.plot(datearray, meanjobsize, 'r-', label="Total")
+    ax.plot(datearray, other_meanjob, label="Other")
+    for name in top10:
+       ax.plot(datearray, code_meanjob[name], label=name)
+       
+    ax.legend()
+    ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
+    # ax.set_ylim((0,20))
+    fig.autofmt_xdate()
+    fig.savefig("{0}/meanjobsize.png".format(outDir))
 
     totnh = 0
     totjobs = 0
@@ -287,22 +415,49 @@ def main(argv):
     totnh = totnh + other_nh
     totjobs = totjobs + other_jobs
 
-    # Loop over codes printing usage
-    sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs", "Users"))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
-    for name in sorted(code_nh, key=code_nh.get, reverse=True):
-       nhfrac = 100 * float(code_nh[name])/float(totnh)
-       jobfrac = 100 * float(code_jobs[name])/float(totjobs)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name]))
-    nhfrac = 100 * float(other_nh)/float(totnh)
-    jobfrac = 100 * float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac, other_num_users))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("----", "----------", "------", "----", "------", "-----"))
-    nhfrac = 100 * float(totnh)/float(totnh)
-    jobfrac = 100 * float(totjobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}\n".format("Total", totnh, nhfrac, totjobs, jobfrac, totusers))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
+    # Bin the job sizes into the specified size bins and compute the mean job sizes
+    # The tot arrays should contain keys with all the node counts encountered
+
+    # Initialise all the "bin" arrays
+    btot_nh_bysize = {}
+    btot_jobs_bysize = {}
+    bother_nh_bysize = {}
+    bother_jobs_bysize = {}
+    bcode_nh_bysize = {}
+    bcode_jobs_bysize = {}
+    tot_sum_jobs_size = 0
+    other_sum_jobs_size = 0
+    code_sum_jobs_size = {}
+    for size in sizes:
+       btot_nh_bysize[size] = 0
+       btot_jobs_bysize[size] = 0
+       bother_nh_bysize[size] = 0
+       bother_jobs_bysize[size] = 0
+    for code in codes:
+       name = code.name
+       code_sum_jobs_size[name] = 0
+       # Use tuple dict keys as they are less of a pain than 2D dicts
+       for size in sizes:
+          bcode_nh_bysize[(name, size)] = 0
+          bcode_jobs_bysize[(name, size)] = 0
+    # Loop over all sizes encountered binning them up
+    for nodes in tot_nh_bysize:
+       tot_sum_jobs_size += int(nodes) * int(tot_nh_bysize[nodes])
+       for size in sizes:
+          if int(nodes) <= size:
+             btot_nh_bysize[size] += int(tot_nh_bysize[nodes])
+             btot_jobs_bysize[size] += int(tot_jobs_bysize[nodes])
+             if nodes in other_nh_bysize:
+                other_sum_jobs_size += int(nodes) * int(other_nh_bysize[nodes])
+                bother_nh_bysize[size] += int(other_nh_bysize[nodes])
+                bother_jobs_bysize[size] += int(other_jobs_bysize[nodes])
+             for code in codes:
+                name = code.name
+                if (name, nodes) in code_nh_bysize:
+                   code_sum_jobs_size[name] += int(nodes) * int(code_nh_bysize[(name, nodes)])
+                   bcode_nh_bysize[(name, size)] += int(code_nh_bysize[(name, nodes)])
+                   bcode_jobs_bysize[(name, size)] += int(code_jobs_bysize[(name, nodes)])
+             break
 
     # Node hours by job size
     sys.stdout.write("\n\nNode hours by job size\n")
@@ -315,11 +470,11 @@ def main(argv):
     for name in sorted(code_nh, key=code_nh.get, reverse=True):
        sys.stdout.write("{0:>20s}".format(name))
        for size in sizes:
-          sys.stdout.write("{0:10d}".format(code_nh_bysize[name][size]))
+          sys.stdout.write("{0:10d}".format(bcode_nh_bysize[(name, size)]))
        sys.stdout.write("\n")
     sys.stdout.write("{0:>20s}".format("Unknown"))
     for size in sizes:
-       sys.stdout.write("{0:>10d}".format(other_nh_bysize[size]))
+       sys.stdout.write("{0:>10d}".format(bother_nh_bysize[size]))
     sys.stdout.write("\n")
     lines = "{0:>20s}".format("----")
     for size in sizes:
@@ -327,12 +482,27 @@ def main(argv):
     sys.stdout.write(lines + "\n")
     sys.stdout.write("{0:>20s}".format("Total"))
     for size in sizes:
-       sys.stdout.write("{0:>10d}".format(tot_nh_bysize[size]))
+       sys.stdout.write("{0:>10d}".format(btot_nh_bysize[size]))
     sys.stdout.write("\n")
     lines = "{0:>20s}".format("====")
     for size in sizes:
        lines = lines + "{0:>10s}".format("====")
     sys.stdout.write(lines + "\n")
+
+    # Plot bar chart of usage against size
+
+    fig = plt.figure(1)
+    ax = plt.subplot(1, 1, 1)
+    ax.cla()
+    nrow = len(btot_nh_bysize)
+    data = []
+    for size in sizes:
+       data.append(btot_nh_bysize[size])
+    print "nrow = {0}".format(nrow)
+    ax.bar(np.arange(nrow), data, 1.0, color='r', alpha=0.75)
+    ax.set_xticks(np.arange(nrow) + 1.0)
+    ax.set_xticklabels(sizes)
+    fig.savefig("{0}/size_v_nodeh.png".format(outDir))
 
     # Jobs by job size
     sys.stdout.write("\n\nNumber of jobs by job size\n")
@@ -345,11 +515,11 @@ def main(argv):
     for name in sorted(code_nh, key=code_nh.get, reverse=True):
        sys.stdout.write("{0:>20s}".format(name))
        for size in sizes:
-          sys.stdout.write("{0:10d}".format(code_jobs_bysize[name][size]))
+          sys.stdout.write("{0:10d}".format(bcode_jobs_bysize[(name, size)]))
        sys.stdout.write("\n")
     sys.stdout.write("{0:>20s}".format("Unknown"))
     for size in sizes:
-       sys.stdout.write("{0:>10d}".format(other_jobs_bysize[size]))
+       sys.stdout.write("{0:>10d}".format(bother_jobs_bysize[size]))
     sys.stdout.write("\n")
     lines = "{0:>20s}".format("----")
     for size in sizes:
@@ -357,12 +527,39 @@ def main(argv):
     sys.stdout.write(lines + "\n")
     sys.stdout.write("{0:>20s}".format("Total"))
     for size in sizes:
-       sys.stdout.write("{0:>10d}".format(tot_jobs_bysize[size]))
+       sys.stdout.write("{0:>10d}".format(btot_jobs_bysize[size]))
     sys.stdout.write("\n")
     lines = "{0:>20s}".format("====")
     for size in sizes:
        lines = lines + "{0:>10s}".format("====")
     sys.stdout.write(lines + "\n")
+
+    # Loop over codes printing usage
+    sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs", "Users"))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
+    for name in sorted(code_nh, key=code_nh.get, reverse=True):
+       nhfrac = 100 * float(code_nh[name])/float(totnh)
+       jobfrac = 100 * float(code_jobs[name])/float(totjobs)
+       meanjob = 0.0
+       if code_nh[name] > 0:
+          meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}\n".format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],meanjob))
+    nhfrac = 100 * float(other_nh)/float(totnh)
+    jobfrac = 100 * float(other_jobs)/float(totjobs)
+    meanjob = 0.0
+    if other_nh > 0:
+       meanjob = float(other_sum_jobs_size)/float(other_nh)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac, other_num_users, meanjob))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("----", "----------", "------", "----", "------", "-----"))
+    nhfrac = 100 * float(totnh)/float(totnh)
+    jobfrac = 100 * float(totjobs)/float(totjobs)
+    meanjob = 0.0
+    if totnh > 0:
+       meanjob = float(tot_sum_jobs_size)/float(totnh)
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac, totusers, meanjob))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
+
 
     # Aggregate results on code metadata
     lang_nh = {}
