@@ -74,9 +74,16 @@ def main(argv):
     #=======================================================
     rootDir = os.environ['ARCHER_MON_BASEDIR']
     outDir = "/home/z01/z01/aturner"
-    sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+    # sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+    # Sizes should be in nodes
+    sizes = [4, 64, 256, 512, 4920]
+    size_labels = ["Small", "Medium", "Large", "V. Large", "Huge"]
     thresh = 0.005
-    day_interval = 7
+    day_interval = 14
+    ntop = 10
+    units = "nodes"
+    punit = "Nh"
+    uscale = 1
 
     #=======================================================
     # Read any code definitions
@@ -130,44 +137,47 @@ def main(argv):
        code_jobs[name] = 0
        code_users[name] = ''
        code_num_users[name] = 0
-#       for size in sizes:
-#          # This is funky Python syntax for defining a 2D dict
-#          code_nh_bysize[name] = code_nh_bysize.get(name, {})
-#          code_nh_bysize[name][size] = 0
-#          code_jobs_bysize[name] = code_jobs_bysize.get(name, {})
-#          code_jobs_bysize[name][size] = 0
-#       code_nh_bysize[name] = {}
-#       code_jobs_bysize[name] = {}
 
     #=======================================================
     # Command line options
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "g:h", ["group=", "help"])
+        opts, args = getopt.getopt(argv, "i:s:e:c:g:h", ["interval=", "start=", "end=", "cores=", "group=", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
     # Parse the command-line options
     byuser = False
-    userlist = None
+    userlist = []
+    startfile = datetime.utcfromtimestamp(0)
+    endfile = datetime.now()
     for opt, arg in opts:
-        if opt in ("-g", "--group"):
-            print "Reading user list from " + arg
-            userlist = open(arg, 'r').read()
+        if opt in ("-c", "--cores"):
+            print "Cores per node: ", arg
+            units = "cores"
+            punit = "CPUh"
+            uscale = int(arg)
+        elif opt in ("-i", "--interval"):
+            day_interval = int(arg)
+        elif opt in ("-s", "--start"):
+            startfile = datetime.strptime(arg, "%Y-%m-%d")
+        elif opt in ("-e", "--end"):
+            endfile = datetime.strptime(arg, "%Y-%m-%d")
+        elif opt in ("-g", "--group"):
+            print "Restricting usage to group: " + arg
+            bashCommand = "ldapsearch -x cn={0}".format(arg)
+            ldap = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+            users = ldap.communicate()[0]
+            for line in users.splitlines():
+               if "memberUid" in line:
+                  line = line.rstrip()
+                  tokens = line.split()
+                  userlist.append('"' + tokens[1] + '"')
             byuser = True
-        if opt in ("-h", "--help"):
+        elif opt in ("-h", "--help"):
             printHelp(rootDir)
             exit(0)
-
-    # Get the start and end times
-    starttime = 0
-    endtime = time.mktime(time.gmtime())
-
-    now = datetime.today()
-
-    startfile = datetime.utcfromtimestamp(0)
-    startdate = datetime.utcfromtimestamp(0)
 
     # Read the name of the logfile directory and open it
     indir = args[0]
@@ -177,11 +187,19 @@ def main(argv):
     # Initialise the arrays for storing the time sequence
     datearray = []
     meanjobsize =[]
+    tot_thours = []
+    tot_tjobs = []
     other_meanjob = []
+    other_thours = []
+    other_tjobs = []
     code_meanjob = {}
+    code_thours = {}
+    code_tjobs = {}
     for code in codes:
        name = code.name
        code_meanjob[name] = []
+       code_thours[name] = []
+       code_tjobs[name] = []
 
     daycounter = 0
     nfilejobs = 0
@@ -189,17 +207,25 @@ def main(argv):
     nfilenodehsq = 0
     code_filenh = {}
     code_filenhsq = {}
+    code_filejobs = {}
     for code in codes:
        name = code.name
        code_filenh[name] = 0 
+       code_filejobs[name] = 0 
        code_filenhsq[name] = 0
     other_filenh = 0
     other_filenhsq = 0
+    other_filejobs = 0
+   
+    startdate = None
+    enddate = None
     for file in files:
      filename = os.path.basename(file)
      filedate = filename.split('.')[0]
      fdate = datetime.strptime(filedate, "%Y-%m-%d")
-     if fdate >= startfile:
+     if fdate >= startfile and fdate <= endfile:
+         if startdate is None: startdate = fdate
+         enddate = fdate
          # This is where we will read and process data
          logFile = open(file, "r")
 
@@ -212,11 +238,13 @@ def main(argv):
                name = code.name
                code_filenh[name] = 0 
                code_filenhsq[name] = 0
+               code_filejobs[name] = 0 
             other_filenh = 0
             other_filenhsq = 0
+            other_filejobs = 0
 
          # Initialise variables
-         intimerange = False
+         intimerange = True
          # Loop over lines in the file reading them
          for line in logFile:
 
@@ -224,13 +252,6 @@ def main(argv):
                timeline = line.rstrip()
                tokens = timeline.split()
                thistime = int(time.mktime(time.strptime(tokens[1], "%Y-%m-%d")))
-               # If we are past the end time then finish the loop
-               if thistime > endtime:
-                  sys.stdout.write("Finished at: {0}".format(timeline))
-                  break
-               elif thistime >= starttime:
-                  intimerange = True
-                  continue
             # End of if start block match
 
             # If we are in the time range then accumulate data
@@ -253,18 +274,20 @@ def main(argv):
                exename = tokens[7]
 
                # We may need to test if we are counting this job
-               countjob = True
+               addjob = True
                if byuser:
                   # Space added to try and counter substring username matches
-                  if " " + user in userlist:
-                     countjob = True
+                  if '"' + user + '"' in userlist:
+                     addjob = True
                   else:
-                     countjob = False
+                     addjob = False
 
                # This is needed in case we are filtering by user
-               if countjob:
+               if addjob:
                   # Add this number of hours to total
                   totnh += int(nodes)
+                  nfilenodeh += int(nodes)
+                  nfilenodehsq += int(nodes) * int(nodes)
 
                   # Check we have not already seen this job
                   countjob = True
@@ -272,16 +295,23 @@ def main(argv):
                      countjob = False
                   else:
                      totjobs += 1
-                     matchedjobs[jobid] = True
                      nfilejobs += 1
-                     nfilenodehsq += int(nodes) * int(nodes)
-                     nfilenodeh += int(nodes)
+                     matchedjobs[jobid] = True
    
                   # Check if we have already seen this user
                   if user not in users:
                      users = "{0} {1}".format(users, user)
                      totusers += 1
    
+                  # Store this job by size
+                  if nodes in tot_nh_bysize:
+                     tot_nh_bysize[nodes] += int(nodes)
+                     if countjob:
+                        tot_jobs_bysize[nodes] += 1
+                  else:
+                     tot_nh_bysize[nodes] = int(nodes)
+                     if countjob:
+                        tot_jobs_bysize[nodes] = 1
                   # Loop over codes, storing this job
                   matched = False
                   for code in codes:
@@ -289,32 +319,22 @@ def main(argv):
                      if re.search(code_regexp[name], exename):
                         matched = True
                         code_nh[name] += int(nodes)
-                        if countjob: code_jobs[name] += 1
+                        if countjob:
+                           code_jobs[name] += 1
+                           code_filejobs[name] += 1
                         if user not in code_users[name]:
                            code_users[name] = "{0} {1}".format(code_users[name], user)
                            code_num_users[name] += 1
-   #                     for size in sizes:
-   #                        if int(nodes) <= size:
-   #                           code_nh_bysize[name][size] += int(nodes)
-   #                           tot_nh_bysize[size] += int(nodes)
-   #                           if countjob:
-   #                              code_jobs_bysize[name][size] += 1
-   #                              tot_jobs_bysize[size] += 1
-   #                           break
                         code_filenh[name] += int(nodes)
                         code_filenhsq[name] += int(nodes)*int(nodes)
                         if (name, nodes) in code_nh_bysize:
                            code_nh_bysize[(name, nodes)] += int(nodes)
-                           tot_nh_bysize[nodes] += int(nodes)
                            if countjob:
                               code_jobs_bysize[(name, nodes)] += 1
-                              tot_jobs_bysize[nodes] += 1
                         else:
                            code_nh_bysize[(name, nodes)] = int(nodes)
-                           tot_nh_bysize[nodes] = int(nodes)
                            if countjob:
                               code_jobs_bysize[(name, nodes)] = 1
-                              tot_jobs_bysize[nodes] = 1
                   # End of loop over codes
    
                   # Store if not matched to defined code
@@ -324,32 +344,22 @@ def main(argv):
                         other_codes[exename] += int(nodes)
                      else:
                         other_codes[exename] = int(nodes)
-                     if countjob: other_jobs += 1
+                     if countjob:
+                        other_jobs += 1
+                        other_filejobs += 1
                      if user not in other_users:
                         other_users = "{0} {1}".format(other_users, user)
                         other_num_users += 1
-   #                  for size in sizes:
-   #                     if int(nodes) <= size:
-   #                        other_nh_bysize[size] += int(nodes)
-   #                        tot_nh_bysize[size] += int(nodes)
-   #                        if countjob:
-   #                           other_jobs_bysize[size] += 1
-   #                           tot_jobs_bysize[size] += 1
-   #                        break
                      other_filenh += int(nodes)
                      other_filenhsq += int(nodes)*int(nodes)
                      if nodes in other_nh_bysize:
                         other_nh_bysize[nodes] += int(nodes)
-                        tot_nh_bysize[nodes] += int(nodes)
                         if countjob:
-                           other_jobs_bysize[size] += 1
-                           tot_jobs_bysize[size] += 1
+                           other_jobs_bysize[nodes] += 1
                      else:
                         other_nh_bysize[nodes] = int(nodes)
-                        tot_nh_bysize[nodes] = int(nodes)
                         if countjob:
-                           other_jobs_bysize[nodes] =  1
-                           tot_jobs_bysize[nodes] = 1
+                           other_jobs_bysize[nodes] = 1
                 # End of if countjob
  
             # End of if intimerange
@@ -363,61 +373,161 @@ def main(argv):
          if daycounter == day_interval:
             datearray.append(fdate)
             if nfilenodeh > 0:
-               mjobsize = float(nfilenodehsq)/float(nfilenodeh)
+               mjobsize = uscale * float(nfilenodehsq)/float(nfilenodeh)
                meanjobsize.append(mjobsize)
+               tot_thours.append(uscale * nfilenodeh)
+               tot_tjobs.append(nfilejobs)
             else:
-               meanjobsize.append(0.0)
+               meanjobsize.append(0)
+               tot_thours.append(0)
+               tot_tjobs.append(0)
             for code in codes:
                name = code.name
                if code_filenh[name] > 0:
-                  code_meanjob[name].append(float(code_filenhsq[name])/float(code_filenh[name]))
+                  code_meanjob[name].append(uscale * float(code_filenhsq[name])/float(code_filenh[name]))
+                  code_thours[name].append(uscale * code_filenh[name])
+                  code_tjobs[name].append(code_filejobs[name])
                else:
-                  code_meanjob[name].append(0.0)
+                  code_meanjob[name].append(0)
+                  code_thours[name].append(0)
+                  code_tjobs[name].append(0)
             if other_filenh > 0:
-               other_meanjob.append(float(other_filenhsq)/float(other_filenh))
+               other_meanjob.append(uscale * float(other_filenhsq)/float(other_filenh))
+               other_thours.append(uscale * other_filenh)
+               other_tjobs.append(other_filejobs)
             else:
-               other_meanjob.append(0.0)
-            print fdate, nfilenodeh, nfilejobs, mjobsize
+               other_meanjob.append(0)
+               other_thours.append(0)
+               other_tjobs.append(0)
             daycounter = 0
 
     # End of loop over logfiles
+    sys.stdout.write("\n")
+
+    sys.stdout.write(" Started at: " + startdate.strftime("%Y-%m-%d") + "\n")
+    sys.stdout.write("Finished at: " + enddate.strftime("%Y-%m-%d") + "\n")
 
     # Get list of the top 10 codes by node hours
-    top10 = [k for k in sorted(code_nh, key=code_nh.get, reverse=True)[:9]]
+    top_codes = [k for k in sorted(code_nh, key=code_nh.get, reverse=True)[:ntop]]
 
-    # Plot a time profile of the overall mean job size
     import matplotlib
-    matplotlib.rcParams['font.size'] = 8
+    matplotlib.rcParams['font.size'] = 9
     matplotlib.use("Agg")
     from matplotlib import pyplot as plt
     import numpy as np
     from matplotlib import dates
+    import matplotlib.colors as colors
+    import matplotlib.cm as cmx
+    import matplotlib.patches as mpatches
 
+    # Set up a nice colormap to vary the line colours
+    colmap = cm = plt.get_cmap('spectral') 
+    cNorm  = colors.Normalize(vmin=0, vmax=ntop+1)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=colmap)
+
+    # Plot a time profile of the overall mean job size
     fig = plt.figure(1)
     ax = plt.subplot(1, 1, 1)
     ax.cla()
-    ax.plot(datearray, meanjobsize, 'r-', label="Total")
-    ax.plot(datearray, other_meanjob, label="Other")
-    for name in top10:
-       ax.plot(datearray, code_meanjob[name], label=name)
-       
-    ax.legend()
+    idx = 0
+    recs = []
+    labels = []
+    cursum = []
+    newsum = []
+    for name in top_codes:
+       if code_nh[name] > 0:
+          colorVal = scalarMap.to_rgba(idx)
+          recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=colorVal))
+          labels.append(name)
+          if idx == 0:
+             ax.fill_between(datearray, 0, code_meanjob[name], facecolor=colorVal, color=colorVal)
+             cursum = list(code_meanjob[name])
+             newsum = list(cursum)
+          else:
+             for i, bi in enumerate(code_meanjob[name]): newsum[i] = cursum[i] + bi
+             ax.fill_between(datearray, cursum, newsum, facecolor=colorVal, color=colorVal)
+             cursum = list(newsum)
+          idx += 1
+    if other_nh > 0:
+       for i, bi in enumerate(other_meanjob): newsum[i] = cursum[i] + bi
+       ax.fill_between(datearray, cursum, newsum, facecolor='0.5', color='0.5')
+       recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='0.5'))
+       labels.append('Unknown')
+       cursum = list(newsum)
+    for i, bi in enumerate(meanjobsize): newsum[i] = cursum[i] + bi
+    ax.fill_between(datearray, cursum, newsum, facecolor='0.75', color='0.75')
+    recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='0.75'))
+    labels.append('All')
+    box = ax.get_position()
     ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
-    # ax.set_ylim((0,20))
     fig.autofmt_xdate()
-    fig.savefig("{0}/meanjobsize.png".format(outDir))
+    ax.set_xlabel('Date')
+    if units == "nodes":
+       ax.set_ylabel('Mean Job Size / Nodes')
+       ax.set_title('Mean job size over time')
+    elif units == "cores":
+       ax.set_ylabel('Mean Job Size / Cores')
+       ax.set_title('Mean job size over time')
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    plt.legend(recs, labels, bbox_to_anchor=(1.4, 1.0))
+    fig.savefig("{0}/meanjob_timeline.png".format(outDir))
 
-    totnh = 0
-    totjobs = 0
-    for name in sorted(code_nh, key=code_nh.get, reverse=True):
-        totnh = totnh + code_nh[name]
-        totjobs = totjobs + code_jobs[name]
-    totnh = totnh + other_nh
-    totjobs = totjobs + other_jobs
+    # Plot a time profile of the overall node hours
+    fig = plt.figure(1)
+    ax = plt.subplot(1, 1, 1)
+    ax.cla()
+    idx = 0
+    recs = []
+    labels = []
+    cursum = []
+    newsum = []
+    for name in top_codes:
+       if code_nh[name] > 0:
+          colorVal = scalarMap.to_rgba(idx)
+          recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=colorVal))
+          labels.append(name)
+          if idx == 0:
+             ax.fill_between(datearray, 0, code_thours[name], facecolor=colorVal, color=colorVal)
+             cursum = list(code_thours[name])
+             newsum = list(cursum)
+          else:
+             for i, bi in enumerate(code_thours[name]): newsum[i] = cursum[i] + bi
+             ax.fill_between(datearray, cursum, newsum, facecolor=colorVal, color=colorVal)
+             cursum = list(newsum)
+          idx += 1
+    if other_nh > 0:
+       for i, bi in enumerate(other_thours): newsum[i] = cursum[i] + bi
+       ax.fill_between(datearray, cursum, newsum, facecolor='0.5', color='0.5')
+       recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='0.5'))
+       labels.append('Unknown')
+       cursum = list(newsum)
+    ax.plot(datearray, tot_thours, 'r-')
+#     ax.fill_between(datearray, cursum, tot_thours, facecolor='0.75', color='0.75')
+    recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='r'))
+    labels.append('All')
+    ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Usage / ' + punit)
+    ax.set_title('Usage over time')
+    fig.autofmt_xdate()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    plt.legend(recs, labels, bbox_to_anchor=(1.4, 1.0))
+    fig.savefig("{0}/hours_timeline.png".format(outDir))
 
     # Bin the job sizes into the specified size bins and compute the mean job sizes
     # The tot arrays should contain keys with all the node counts encountered
 
+    # Initialise median calculators
+    tot_sumh = 0
+    tot_medh = 0.0
+    other_sumh = 0
+    other_medh = 0.0
+    code_sumh = {}
+    code_medh = {}
+    for code in codes:
+       name = code.name
+       code_sumh[name] = 0
+       code_medh[name] = 0.0
     # Initialise all the "bin" arrays
     btot_nh_bysize = {}
     btot_jobs_bysize = {}
@@ -441,124 +551,173 @@ def main(argv):
           bcode_nh_bysize[(name, size)] = 0
           bcode_jobs_bysize[(name, size)] = 0
     # Loop over all sizes encountered binning them up
-    for nodes in tot_nh_bysize:
+    for nodes in sorted(tot_nh_bysize, key=int):
        tot_sum_jobs_size += int(nodes) * int(tot_nh_bysize[nodes])
+       tot_sumh += int(tot_nh_bysize[nodes])
+       if tot_sumh < (totnh/2.0):
+          tot_medh = nodes
        for size in sizes:
-          if int(nodes) <= size:
+          if int(nodes) <= int(size):
              btot_nh_bysize[size] += int(tot_nh_bysize[nodes])
              btot_jobs_bysize[size] += int(tot_jobs_bysize[nodes])
              if nodes in other_nh_bysize:
+                other_sumh += int(tot_nh_bysize[nodes])
+                if other_sumh < other_nh / 2.0:
+                   other_medh = nodes
                 other_sum_jobs_size += int(nodes) * int(other_nh_bysize[nodes])
                 bother_nh_bysize[size] += int(other_nh_bysize[nodes])
                 bother_jobs_bysize[size] += int(other_jobs_bysize[nodes])
              for code in codes:
                 name = code.name
                 if (name, nodes) in code_nh_bysize:
+                   code_sumh[name] += code_nh_bysize[(name, nodes)]
+                   if code_sumh[name] < code_nh[name]/2.0:
+                      code_medh[name] = nodes
                    code_sum_jobs_size[name] += int(nodes) * int(code_nh_bysize[(name, nodes)])
                    bcode_nh_bysize[(name, size)] += int(code_nh_bysize[(name, nodes)])
                    bcode_jobs_bysize[(name, size)] += int(code_jobs_bysize[(name, nodes)])
              break
 
     # Node hours by job size
-    sys.stdout.write("\n\nNode hours by job size\n")
+    if units == "nodes":
+       sys.stdout.write("\n\nNode hours by job size (in nodes)\n")
+    elif units == "cores":
+       sys.stdout.write("\n\nCPUh by job size (in cores)\n")
     head = "{0:>20s}".format("Code")
     lines = "{0:>20s}".format("====")
+    for size in size_labels:
+       head = head + "{0:>20s}".format(size)
+       lines = lines + "{0:>20s}".format("=====")
+    limits = "{0:>20s}".format("")
     for size in sizes:
-       head = head + "{0:>10d}".format(size)
-       lines = lines + "{0:>10s}".format("=====")
-    sys.stdout.write(head + "\n" + lines + "\n")
+       t = "<{0:d} {1}".format(uscale * size, units)
+       limits = limits + "{0:>20s}".format(t)
+    sys.stdout.write(head + "\n" + limits + "\n" + lines + "\n")
     for name in sorted(code_nh, key=code_nh.get, reverse=True):
        sys.stdout.write("{0:>20s}".format(name))
        for size in sizes:
-          sys.stdout.write("{0:10d}".format(bcode_nh_bysize[(name, size)]))
+          sys.stdout.write("{0:20d}".format(uscale * bcode_nh_bysize[(name, size)]))
        sys.stdout.write("\n")
     sys.stdout.write("{0:>20s}".format("Unknown"))
     for size in sizes:
-       sys.stdout.write("{0:>10d}".format(bother_nh_bysize[size]))
+       sys.stdout.write("{0:>20d}".format(uscale * bother_nh_bysize[size]))
     sys.stdout.write("\n")
     lines = "{0:>20s}".format("----")
     for size in sizes:
-       lines = lines + "{0:>10s}".format("-----")
+       lines = lines + "{0:>20s}".format("-----")
     sys.stdout.write(lines + "\n")
     sys.stdout.write("{0:>20s}".format("Total"))
     for size in sizes:
-       sys.stdout.write("{0:>10d}".format(btot_nh_bysize[size]))
+       sys.stdout.write("{0:>20d}".format(uscale * btot_nh_bysize[size]))
     sys.stdout.write("\n")
     lines = "{0:>20s}".format("====")
     for size in sizes:
-       lines = lines + "{0:>10s}".format("====")
+       lines = lines + "{0:>20s}".format("====")
     sys.stdout.write(lines + "\n")
 
     # Plot bar chart of usage against size
 
+    bar_labels = []
+    for i, bi in enumerate(size_labels):
+       bar_labels.append("{0}\n<{1:d} {2}".format(bi, uscale * sizes[i], units))
+    width = 0.7
     fig = plt.figure(1)
+    fig.clf()
     ax = plt.subplot(1, 1, 1)
-    ax.cla()
     nrow = len(btot_nh_bysize)
     data = []
     for size in sizes:
-       data.append(btot_nh_bysize[size])
-    print "nrow = {0}".format(nrow)
-    ax.bar(np.arange(nrow), data, 1.0, color='r', alpha=0.75)
-    ax.set_xticks(np.arange(nrow) + 1.0)
-    ax.set_xticklabels(sizes)
-    fig.savefig("{0}/size_v_nodeh.png".format(outDir))
+       data.append(uscale * btot_nh_bysize[size])
+    pos = np.arange(nrow) - (width/2.0)
+    ax.bar(pos, data, width, color='0.75', alpha=0.75)
+    ax.set_xticks(np.arange(nrow))
+    ax.set_xticklabels(bar_labels)
+    ax.set_title('Usage by Job Size')
+    ax.set_ylabel('Usage / ' + punit)
+    fig.savefig("{0}/usagebysize_Total.png".format(outDir))
+
+    # Bar charts for each code
+    idx = 0
+    for name in top_codes:
+       fig = plt.figure(1)
+       ax = plt.subplot(1, 1, 1)
+       ax.cla()
+       data = []
+       for size in sizes:
+          data.append(uscale * bcode_nh_bysize[(name,size)])
+       colorVal = scalarMap.to_rgba(idx)
+       ax.bar(pos, data, width, color=colorVal, edgecolor=colorVal, alpha=0.75)
+       idx += 1
+       ax.set_xticks(np.arange(nrow))
+       ax.set_xticklabels(bar_labels)
+       ax.set_xlim([-1,nrow])
+       ax.set_title('Usage by Job Size for ' + name)
+       ax.set_ylabel('Usage / ' + punit)
+       fig.savefig("{0}/usagebysize_{1}.png".format(outDir, name))
 
     # Jobs by job size
     sys.stdout.write("\n\nNumber of jobs by job size\n")
     head = "{0:>20s}".format("Code")
     lines = "{0:>20s}".format("====")
+    for size in size_labels:
+       head = head + "{0:>20s}".format(size)
+       lines = lines + "{0:>20s}".format("=====")
+    limits = "{0:>20s}".format("")
     for size in sizes:
-       head = head + "{0:>10d}".format(size)
-       lines = lines + "{0:>10s}".format("=====")
-    sys.stdout.write(head + "\n" + lines + "\n")
+       t = "<{0:d} {1}".format(uscale * size, units)
+       limits = limits + "{0:>20s}".format(t)
+    sys.stdout.write(head + "\n" + limits + "\n" + lines + "\n")
     for name in sorted(code_nh, key=code_nh.get, reverse=True):
        sys.stdout.write("{0:>20s}".format(name))
        for size in sizes:
-          sys.stdout.write("{0:10d}".format(bcode_jobs_bysize[(name, size)]))
+          sys.stdout.write("{0:20d}".format(bcode_jobs_bysize[(name, size)]))
        sys.stdout.write("\n")
     sys.stdout.write("{0:>20s}".format("Unknown"))
     for size in sizes:
-       sys.stdout.write("{0:>10d}".format(bother_jobs_bysize[size]))
+       sys.stdout.write("{0:>20d}".format(bother_jobs_bysize[size]))
     sys.stdout.write("\n")
     lines = "{0:>20s}".format("----")
     for size in sizes:
-       lines = lines + "{0:>10s}".format("-----")
+       lines = lines + "{0:>20s}".format("-----")
     sys.stdout.write(lines + "\n")
     sys.stdout.write("{0:>20s}".format("Total"))
     for size in sizes:
-       sys.stdout.write("{0:>10d}".format(btot_jobs_bysize[size]))
+       sys.stdout.write("{0:>20d}".format(btot_jobs_bysize[size]))
     sys.stdout.write("\n")
     lines = "{0:>20s}".format("====")
     for size in sizes:
-       lines = lines + "{0:>10s}".format("====")
+       lines = lines + "{0:>20s}".format("====")
     sys.stdout.write(lines + "\n")
 
     # Loop over codes printing usage
-    sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs", "Users"))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
+    if units == 'nodes':
+       sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
+    elif units == 'cores':
+       sys.stdout.write("\n\nTotal code usage (ordered by CPUh)\n")
+      
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs", "Users", "Mean", "Median"))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("====", "==========", "======", "====", "======", "=====", "====", "======"))
     for name in sorted(code_nh, key=code_nh.get, reverse=True):
        nhfrac = 100 * float(code_nh[name])/float(totnh)
        jobfrac = 100 * float(code_jobs[name])/float(totjobs)
        meanjob = 0.0
        if code_nh[name] > 0:
           meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}\n".format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],meanjob))
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
     nhfrac = 100 * float(other_nh)/float(totnh)
     jobfrac = 100 * float(other_jobs)/float(totjobs)
     meanjob = 0.0
     if other_nh > 0:
        meanjob = float(other_sum_jobs_size)/float(other_nh)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac, other_num_users, meanjob))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("----", "----------", "------", "----", "------", "-----"))
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("----", "----------", "------", "----", "------", "-----", "----", "------"))
     nhfrac = 100 * float(totnh)/float(totnh)
     jobfrac = 100 * float(totjobs)/float(totjobs)
     meanjob = 0.0
     if totnh > 0:
        meanjob = float(tot_sum_jobs_size)/float(totnh)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac, totusers, meanjob))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}\n".format("====", "==========", "======", "====", "======", "====="))
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("====", "==========", "======", "====", "======", "=====", "====", "======"))
 
 
     # Aggregate results on code metadata
@@ -574,20 +733,23 @@ def main(argv):
           lang_nh[lang] = code_nh[name]
           lang_jobs[lang] = code_jobs[name]
     # Loop over codes printing usage
-    sys.stdout.write("\n\nTotal language usage (ordered by node hours)\n")
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
+    if units == 'nodes':
+       sys.stdout.write("\n\nTotal language usage (ordered by node hours)\n")
+    elif units == 'cores':
+       sys.stdout.write("\n\nTotal language usage (ordered by CPUh)\n")
+    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
     sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
     for lang in sorted(lang_nh, key=lang_nh.get, reverse=True):
        nhfrac = 100 * float(lang_nh[lang])/float(totnh)
        jobfrac = 100 * float(lang_jobs[lang])/float(totjobs)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(lang, lang_nh[lang], nhfrac, lang_jobs[lang], jobfrac))
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(lang, uscale * lang_nh[lang], nhfrac, lang_jobs[lang], jobfrac))
     nhfrac = 100 * float(other_nh)/float(totnh)
     jobfrac = 100 * float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
     sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
     nhfrac = 100 * float(totnh)/float(totnh)
     jobfrac = 100 * float(totjobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
     sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Aggregate results on type metadata
@@ -603,20 +765,23 @@ def main(argv):
           meta_nh[meta] = code_nh[name]
           meta_jobs[meta] = code_jobs[name]
     # Loop over codes printing usage
-    sys.stdout.write("\n\nTotal type usage (ordered by node hours)\n")
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
+    if units == 'nodes':
+       sys.stdout.write("\n\nTotal type usage (ordered by node hours)\n")
+    elif units == 'cores':
+       sys.stdout.write("\n\nTotal type usage (ordered by CPUh)\n")
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
     sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
     for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
        nhfrac = 100 * float(meta_nh[meta])/float(totnh)
        jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
     nhfrac = 100 * float(other_nh)/float(totnh)
     jobfrac = 100 * float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
     sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
     nhfrac = 100 * float(totnh)/float(totnh)
     jobfrac = 100 * float(totjobs)/float(totjobs)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
     sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Aggregate results on type metadata
@@ -632,35 +797,42 @@ def main(argv):
           meta_nh[meta] = code_nh[name]
           meta_jobs[meta] = code_jobs[name]
     # Loop over codes printing usage
-    sys.stdout.write("\n\nTotal area usage (ordered by node hours)\n")
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", "Node Hours", "% Time", "Jobs", "% Jobs"))
+    if units == 'nodes':
+       sys.stdout.write("\n\nTotal research area usage (ordered by node hours)\n")
+    elif units == 'cores':
+       sys.stdout.write("\n\nTotal research area usage (ordered by CPUh)\n")
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
     sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
     for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
        nhfrac = 100 * float(meta_nh[meta])/float(totnh)
        jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
     nhfrac = 100 * float(other_nh)/float(totnh)
     jobfrac = 100 * float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
     sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
     nhfrac = 100 * float(totnh)/float(totnh)
     jobfrac = 100 * float(totjobs)/float(totjobs)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
     sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-    # Print out any other executables with usage over 1%
+
+    # Print out any other executables with usage over defined threshold
     percent = thresh * float(totnh)
-    sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total node hours:\n".format(100*thresh))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("Code", "Node Hours", "% Time"))
+    if units == 'nodes':
+       sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total node hours:\n".format(100*thresh))
+    elif units == 'cores':
+       sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total CPUh:\n".format(100*thresh))
+    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("Code", punit, "% Time"))
     sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
     other_tot = 0
     for name in sorted(other_codes, key=other_codes.get, reverse=True):
        if other_codes[name] > percent:
           nhfrac = 100 * float(other_codes[name])/float(totnh)
           other_tot += int(other_codes[name])
-          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format(name, other_codes[name], nhfrac))
+          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format(name, uscale * other_codes[name], nhfrac))
     sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("----", "----------", "------"))
     nhfrac = 100 * float(other_tot)/float(totnh)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format("Total", other_tot, nhfrac))
+    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format("Total", uscale * other_tot, nhfrac))
     sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
 
 

@@ -17,43 +17,19 @@
 # along with archer-monitor.  If not, see <http://www.gnu.org/licenses/>.
 #----------------------------------------------------------------------
 #
-# CP2K Code
-# =========
-#
-# This configuration file describes the CP2K code
-#
-# This file has been annotated with comments describing each
-# option to aid in installing the tool on other systems.
-#
-# All options must be provided in the configuration file even
-# if the value is not specified.
-#
-#----------------------------------------------------------------------
 
-# Basic code information
 [code info]
+name: CASTEP
+regexp: castep
 
-# The name of the code (used in output)
-name: cp2k
-
-# Regular expression used to identify executables in apstat output
-regexp: cp2k
-
-#----------------------------------------------------------------------
-# Metadata associated with the code
 [metadata]
-
-# Programming language and version
 primary language: Fortran
 version:          95
 
-# Licensing 
-academic license: Open Source: GPL
-commercial license: Open Source: GPL
+academic license: Free
+commercial license: Fee
 
-# Rough code category
 code type: Periodic Electronic Structure
 
-# Major research area on ARCHER
 research area: Materials Science
 

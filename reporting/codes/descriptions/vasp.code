@@ -19,14 +19,14 @@
 #
 
 [code info]
-name: CASTEP
-regexp: castep
+name: VASP
+regexp: vasp
 
 [metadata]
 primary language: Fortran
 version:          95
 
-academic license: Free
+academic license: Fee
 commercial license: Fee
 
 code type: Periodic Electronic Structure

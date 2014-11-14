@@ -24,12 +24,12 @@ regexp: c3d_omp
 
 [metadata]
 primary language: Fortran
-version:          95
+version:          90
 
-academic license: Unknown
-commercial license: Unknown
+academic license: None
+commercial license: None
 
-code type: DNS
+code type: CFD
 
-research area: Aerospace
+research area: Fluid Mechanics
 
