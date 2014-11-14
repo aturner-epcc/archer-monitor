@@ -25,7 +25,7 @@ indir = os.environ['ARCHER_MON_LOGDIR'] + '/usage'
 outdir = os.environ['ARCHER_MON_OUTDIR'] + '/usage'
 
 # Maximum number of nodes on the system
-maxnodes = 3008
+maxnodes = 4920
 
 # Valid reporting periods
 periods = ['1d', '2d', '1w', '1m', '1q', '1y']
