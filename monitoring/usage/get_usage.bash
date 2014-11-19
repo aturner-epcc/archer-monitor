@@ -25,6 +25,11 @@ DATE=`date --rfc-3339=date`
 
 outfile="$ARCHER_MON_LOGDIR/usage/$DATE.usage"
 
+declare -a sizes=(4 64 256 512 4920)
+declare -a usedbysize=(0 0 0 0 0)
+declare -a size_labels=("Small" "Medium" "Large" "V. Large" "Huge")
+nsize=${#sizes[@]}
+
 # Test that we have some data from job list
 if [ "${#apps[@]}" == 0 ]; then
    printf "%s %d\n" $TIME 0 >> $outfile
@@ -52,10 +57,18 @@ do
          # Print this app line
          IFS=' ' read -a tokens <<< "${line}"
          usednodes=$(( usednodes + tokens[4] ))
+         for i in {0..4}
+         do
+            if [ "${sizes[$i]}" -ge "$usednodes" ]; then
+               usedbysize[$i]=$(( ${usedbysize[$i]} + usednodes )) 
+               break
+            fi
+         done
       fi
    fi
 done
 
-printf "%s %d\n" $TIME $usednodes >> $outfile
+output=`printf "%s %d" $TIME $usednodes`
+echo $output ${usedbysize[@]} >> $outfile
 
 exit 0
