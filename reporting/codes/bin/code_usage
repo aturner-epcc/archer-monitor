@@ -33,8 +33,15 @@
 #
 """Get code usage statistics from specified log file.
 
+USAGE
+
+code_usage [options] <log file directory>
+
 OPTIONS
 
+-s,--start  yyyy-mm-dd   Start date for analysis (default is start of data) 
+-e,--end    yyyy-mm-dd   End date for analysis (default is start of data) 
+-g,--group  <group>      Restrict analysis to specified group (e.g. e05)
 -h,--help                Show this help.
 """
 __author__ = 'Andrew Turner, EPCC, The University of Edinburgh'
@@ -73,8 +80,7 @@ def main(argv):
     # Global configuration section
     #=======================================================
     rootDir = os.environ['ARCHER_MON_BASEDIR']
-    outDir = "/home/z01/z01/aturner"
-    # sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+    outDir = os.environ['PWD']
     # Sizes should be in nodes
     sizes = [4, 64, 256, 512, 4920]
     size_labels = ["Small", "Medium", "Large", "V. Large", "Huge"]
@@ -178,6 +184,12 @@ def main(argv):
         elif opt in ("-h", "--help"):
             printHelp(rootDir)
             exit(0)
+
+    # Check the directory has been specified
+    if len(args) < 1:
+       print "**ERROR - No log directory specified"
+       printHelp(rootDir)
+       exit(0)
 
     # Read the name of the logfile directory and open it
     indir = args[0]
