@@ -857,7 +857,20 @@ def printHelp(rootDir):
            Arguments:
               str rootDir - The root install directory of the tool.
         """
-    subprocess.call(["pydoc", rootDir + "/reporting/codes/bin/code_usage"])
+
+    print """Get code usage statistics from specified log file.
+
+USAGE
+
+code_usage [options] <log file directory>
+
+OPTIONS
+
+-s,--start  yyyy-mm-dd   Start date for analysis (default is start of data) 
+-e,--end    yyyy-mm-dd   End date for analysis (default is start of data) 
+-g,--group  <group>      Restrict analysis to specified group (e.g. e05)
+-h,--help                Show this help.
+"""
 
 if __name__ == "__main__":
     main(sys.argv[1:])
