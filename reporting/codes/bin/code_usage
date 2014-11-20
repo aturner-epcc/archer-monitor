@@ -42,7 +42,7 @@ OPTIONS
 
 -l,--logdir <log directory> Directory containing the logfiles to analyse. The
                             default is:
-                            /home/z01/z01/archstat/archer-monitor/logs/applcations
+                            /home/z01/z01/archstat/archer-monitor/logs/applications
 
 -c,--cores  <number>        Report data in CPUh instead of node hours (Nh). The
                             number specifies the number of cores per node for the
@@ -78,14 +78,16 @@ def main(argv):
     #=======================================================
     # Print out the banner
     #=======================================================
-    sys.stderr.write("===========================================================================\n")
-    sys.stderr.write("code_usage " + __version__ + "\n")
-    sys.stderr.write("---------------------------------------------------------------------------\n")
-    sys.stderr.write("Copyright 2012  EPCC, The University of Edinburgh \n")
-    sys.stderr.write("This program comes with ABSOLUTELY NO WARRANTY; for details type `code_usage -i'.\n")
-    sys.stderr.write("This is free software, and you are welcome to redistribute it\n")
-    sys.stderr.write("under certain conditions; type `code_usage -i' for details.\n")
-    sys.stderr.write("===========================================================================\n")
+    sys.stderr.write("""
+===========================================================================
+code_usage {0}
+---------------------------------------------------------------------------
+Copyright 2012-2014  EPCC, The University of Edinburgh
+This program comes with ABSOLUTELY NO WARRANTY. This is free software, and
+you are welcome to redistribute it under certain conditions. See the GNU
+General Public License for more details: <http://www.gnu.org/licenses/>.
+===========================================================================
+""".format(__version__))
 
     #=======================================================
     # Global configuration section
@@ -882,7 +884,7 @@ OPTIONS
 
 -l,--logdir <log directory> Directory containing the logfiles to analyse. The
                             default is:
-                            /home/z01/z01/archstat/archer-monitor/logs/applcations
+                            /home/z01/z01/archstat/archer-monitor/logs/applications
 
 -c,--cores  <number>        Report data in CPUh instead of node hours (Nh). The
                             number specifies the number of cores per node for the
