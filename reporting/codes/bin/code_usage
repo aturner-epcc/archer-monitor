@@ -884,8 +884,8 @@ OPTIONS
                             number specifies the number of cores per node for the
                             conversion.
 
--s,--start  yyyy-mm-dd      Start date for analysis (default is start of data) 
--e,--end    yyyy-mm-dd      End date for analysis (default is start of data) 
+-s,--start  yyyy-mm-dd      Start date for analysis (default is start of data in logfiles) 
+-e,--end    yyyy-mm-dd      End date for analysis (default is end of data in logfiles) 
 
 -g,--group  <group>         Restrict analysis to specified group (e.g. e05)
 
