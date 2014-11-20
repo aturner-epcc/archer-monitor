@@ -56,11 +56,12 @@ do
       else 
          # Print this app line
          IFS=' ' read -a tokens <<< "${line}"
-         usednodes=$(( usednodes + tokens[4] ))
+         jobnodes=${tokens[4]}
+         usednodes=$(( usednodes + jobnodes ))
          for i in {0..4}
          do
-            if [ "${sizes[$i]}" -ge "$usednodes" ]; then
-               usedbysize[$i]=$(( ${usedbysize[$i]} + usednodes )) 
+            if [ "${sizes[$i]}" -ge "$jobnodes" ]; then
+               usedbysize[$i]=$(( ${usedbysize[$i]} + jobnodes )) 
                break
             fi
          done
