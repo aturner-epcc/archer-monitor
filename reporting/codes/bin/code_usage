@@ -7,6 +7,7 @@
 #===============================================================
 #
 #===============================================================
+# v0.4 - Modified to work all z01 users
 # v0.3 - Statistics on code usage over time
 # v0.2 - Read from separate log files (one for each day)
 # v0.1 - Initial version
@@ -35,17 +36,27 @@
 
 USAGE
 
-code_usage [options] <log file directory>
+code_usage [options]
 
 OPTIONS
 
--s,--start  yyyy-mm-dd   Start date for analysis (default is start of data) 
--e,--end    yyyy-mm-dd   End date for analysis (default is start of data) 
--g,--group  <group>      Restrict analysis to specified group (e.g. e05)
--h,--help                Show this help.
+-l,--logdir <log directory> Directory containing the logfiles to analyse. The
+                            default is:
+                            /home/z01/z01/archstat/archer-monitor/logs/applcations
+
+-c,--cores  <number>        Report data in CPUh instead of node hours (Nh). The
+                            number specifies the number of cores per node for the
+                            conversion.
+
+-s,--start  yyyy-mm-dd      Start date for analysis (default is start of data) 
+-e,--end    yyyy-mm-dd      End date for analysis (default is start of data) 
+
+-g,--group  <group>         Restrict analysis to specified group (e.g. e05)
+
+-h,--help                   Show this help.
 """
 __author__ = 'Andrew Turner, EPCC, The University of Edinburgh'
-__version__ = '0.3'
+__version__ = '0.4'
 
 # Import the required modules
 from code_def import CodeDef
@@ -149,7 +160,8 @@ def main(argv):
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "i:s:e:c:g:h", ["interval=", "start=", "end=", "cores=", "group=", "help"])
+        opts, args = getopt.getopt(argv, "l:i:s:e:c:g:h", 
+                 ["logdir=", "interval=", "start=", "end=", "cores=", "group=", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
@@ -158,12 +170,15 @@ def main(argv):
     userlist = []
     startfile = datetime.utcfromtimestamp(0)
     endfile = datetime.now()
+    indir = "/home/z01/z01/archstat/archer-monitor/logs/applications"
     for opt, arg in opts:
         if opt in ("-c", "--cores"):
             print "Cores per node: ", arg
             units = "cores"
             punit = "CPUh"
             uscale = int(arg)
+        elif opt in ("-l", "--logdir"):
+            indir = arg
         elif opt in ("-i", "--interval"):
             day_interval = int(arg)
         elif opt in ("-s", "--start"):
@@ -185,14 +200,13 @@ def main(argv):
             printHelp(rootDir)
             exit(0)
 
-    # Check the directory has been specified
-    if len(args) < 1:
-       print "**ERROR - No log directory specified"
+    # Check the directory exists
+    if not os.path.isdir(indir):
+       print "**ERROR - Log directory is not valid: " + indir
        printHelp(rootDir)
        exit(0)
 
     # Read the name of the logfile directory and open it
-    indir = args[0]
     sys.stdout.write("Analysing data in: {0}\n".format(indir))
     files = get_filelist(indir, 'apstat')
 
@@ -862,14 +876,24 @@ def printHelp(rootDir):
 
 USAGE
 
-code_usage [options] <log file directory>
+code_usage [options]
 
 OPTIONS
 
--s,--start  yyyy-mm-dd   Start date for analysis (default is start of data) 
--e,--end    yyyy-mm-dd   End date for analysis (default is start of data) 
--g,--group  <group>      Restrict analysis to specified group (e.g. e05)
--h,--help                Show this help.
+-l,--logdir <log directory> Directory containing the logfiles to analyse. The
+                            default is:
+                            /home/z01/z01/archstat/archer-monitor/logs/applcations
+
+-c,--cores  <number>        Report data in CPUh instead of node hours (Nh). The
+                            number specifies the number of cores per node for the
+                            conversion.
+
+-s,--start  yyyy-mm-dd      Start date for analysis (default is start of data) 
+-e,--end    yyyy-mm-dd      End date for analysis (default is start of data) 
+
+-g,--group  <group>         Restrict analysis to specified group (e.g. e05)
+
+-h,--help                   Show this help.
 """
 
 if __name__ == "__main__":
