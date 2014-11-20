@@ -32,29 +32,8 @@
 # along with archer-monitoring.  If not, see <http://www.gnu.org/licenses/>.
 #----------------------------------------------------------------------
 #
-"""Get code usage statistics from specified log file.
-
-USAGE
-
-code_usage [options]
-
-OPTIONS
-
--l,--logdir <log directory> Directory containing the logfiles to analyse. The
-                            default is:
-                            /home/z01/z01/archstat/archer-monitor/logs/applications
-
--c,--cores  <number>        Report data in CPUh instead of node hours (Nh). The
-                            number specifies the number of cores per node for the
-                            conversion.
-
--s,--start  yyyy-mm-dd      Start date for analysis (default is start of data) 
--e,--end    yyyy-mm-dd      End date for analysis (default is start of data) 
-
--g,--group  <group>         Restrict analysis to specified group (e.g. e05)
-
--h,--help                   Show this help.
-"""
+# For hepl see function at bottom of source
+#
 __author__ = 'Andrew Turner, EPCC, The University of Edinburgh'
 __version__ = '0.4'
 
@@ -162,8 +141,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "l:i:s:e:c:g:h", 
-                 ["logdir=", "interval=", "start=", "end=", "cores=", "group=", "help"])
+        opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:h", 
+                 ["bins=", "logdir=", "interval=", "start=", "end=", "cores=", "group=", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
@@ -179,6 +158,21 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             units = "cores"
             punit = "CPUh"
             uscale = int(arg)
+        elif opt in ("-b", "--bins"):
+            # Try to read in custom size bins from file
+            if os.path.isfile(arg):
+               binfile = open(arg, "r")
+               line = binfile.readline()
+               sizes = line.rstrip().split()
+               # Must convert from string to int for this to work
+               sizes = [int(size) for size in sizes]
+               line = binfile.readline()
+               size_labels = line.rstrip().split()
+               binfile.close()
+            else:
+               print "**ERROR - Histogram bins file is not valid: " + arg
+               printHelp(rootDir)
+               exit(0)
         elif opt in ("-l", "--logdir"):
             indir = arg
         elif opt in ("-i", "--interval"):
@@ -894,6 +888,23 @@ OPTIONS
 -e,--end    yyyy-mm-dd      End date for analysis (default is start of data) 
 
 -g,--group  <group>         Restrict analysis to specified group (e.g. e05)
+
+-b,--bins   <filename>      Specify the histogram bins for binning the data as 
+                            a function of job size. The ASCII file specified should
+                            contain two lines: the fist line is a space separated 
+                            list of the upper limits of the bins (in nodes), the
+                            second line is a space separted list of the labels for
+                            the bins. The two lines must contain the same number
+                            of items. For example:
+
+                            512 4920
+                            Small Large
+
+                            If this option is not specified then the default binning
+                            will be used. This is equivalent to a file with:
+  
+                            4, 64, 256, 512, 4920
+                            Small Medium Large V.Large Huge
 
 -h,--help                   Show this help.
 """
