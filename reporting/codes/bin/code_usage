@@ -141,13 +141,15 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:h", 
-                 ["bins=", "logdir=", "interval=", "start=", "end=", "cores=", "group=", "help"])
+        opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:xth", 
+                 ["bins=", "logdir=", "interval=", "start=", "end=", "cores=", "group=", "noplot", "csv", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
     # Parse the command-line options
     byuser = False
+    csv = False
+    png = True
     userlist = []
     startfile = datetime.utcfromtimestamp(0)
     endfile = datetime.now()
@@ -158,6 +160,10 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             units = "cores"
             punit = "CPUh"
             uscale = int(arg)
+        elif opt in ("-x", "--noplot"):
+            png = False
+        elif opt in ("-t", "--csv"):
+            csv = True
         elif opt in ("-b", "--bins"):
             # Try to read in custom size bins from file
             if os.path.isfile(arg):
@@ -432,109 +438,114 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Get list of the top 10 codes by node hours
     top_codes = [k for k in sorted(code_nh, key=code_nh.get, reverse=True)[:ntop]]
 
-    import matplotlib
-    matplotlib.rcParams['font.size'] = 9
-    matplotlib.use("Agg")
-    from matplotlib import pyplot as plt
-    import numpy as np
-    from matplotlib import dates
-    import matplotlib.colors as colors
-    import matplotlib.cm as cmx
-    import matplotlib.patches as mpatches
+    colmap = None
+    cNorm = None
+    scalarMap = None
+    if png: 
+       import matplotlib
+       matplotlib.rcParams['font.size'] = 9
+       matplotlib.use("Agg")
+       from matplotlib import pyplot as plt
+       import numpy as np
+       from matplotlib import dates
+       import matplotlib.colors as colors
+       import matplotlib.cm as cmx
+       import matplotlib.patches as mpatches
 
-    # Set up a nice colormap to vary the line colours
-    colmap = cm = plt.get_cmap('spectral') 
-    cNorm  = colors.Normalize(vmin=0, vmax=ntop+1)
-    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=colmap)
+       # Set up a nice colormap to vary the line colours
+       colmap = cm = plt.get_cmap('spectral') 
+       cNorm  = colors.Normalize(vmin=0, vmax=ntop+1)
+       scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=colmap)
 
-    # Plot a time profile of the overall mean job size
-    fig = plt.figure(1)
-    ax = plt.subplot(1, 1, 1)
-    ax.cla()
-    idx = 0
-    recs = []
-    labels = []
-    cursum = []
-    newsum = []
-    for name in top_codes:
-       if code_nh[name] > 0:
-          colorVal = scalarMap.to_rgba(idx)
-          recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=colorVal))
-          labels.append(name)
-          if idx == 0:
-             ax.fill_between(datearray, 0, code_meanjob[name], facecolor=colorVal, color=colorVal)
-             cursum = list(code_meanjob[name])
-             newsum = list(cursum)
-          else:
-             for i, bi in enumerate(code_meanjob[name]): newsum[i] = cursum[i] + bi
-             ax.fill_between(datearray, cursum, newsum, facecolor=colorVal, color=colorVal)
-             cursum = list(newsum)
-          idx += 1
-    if other_nh > 0:
-       for i, bi in enumerate(other_meanjob): newsum[i] = cursum[i] + bi
-       ax.fill_between(datearray, cursum, newsum, facecolor='0.5', color='0.5')
-       recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='0.5'))
-       labels.append('Unknown')
-       cursum = list(newsum)
-    for i, bi in enumerate(meanjobsize): newsum[i] = cursum[i] + bi
-    ax.fill_between(datearray, cursum, newsum, facecolor='0.75', color='0.75')
-    recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='0.75'))
-    labels.append('All')
-    box = ax.get_position()
-    ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
-    fig.autofmt_xdate()
-    ax.set_xlabel('Date')
-    if units == "nodes":
-       ax.set_ylabel('Mean Job Size / Nodes')
-       ax.set_title('Mean job size over time')
-    elif units == "cores":
-       ax.set_ylabel('Mean Job Size / Cores')
-       ax.set_title('Mean job size over time')
-    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-    plt.legend(recs, labels, bbox_to_anchor=(1.4, 1.0))
-    fig.savefig("{0}/meanjob_timeline.png".format(outDir))
+       # Plot a time profile of the overall mean job size
+       fig = plt.figure(1)
+       ax = plt.subplot(1, 1, 1)
+       ax.cla()
+       idx = 0
+       recs = []
+       labels = []
+       cursum = []
+       newsum = []
+       for name in top_codes:
+          if code_nh[name] > 0:
+             colorVal = scalarMap.to_rgba(idx)
+             recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=colorVal))
+             labels.append(name)
+             if idx == 0:
+                ax.fill_between(datearray, 0, code_meanjob[name], facecolor=colorVal, color=colorVal)
+                cursum = list(code_meanjob[name])
+                newsum = list(cursum)
+             else:
+                for i, bi in enumerate(code_meanjob[name]): newsum[i] = cursum[i] + bi
+                ax.fill_between(datearray, cursum, newsum, facecolor=colorVal, color=colorVal)
+                cursum = list(newsum)
+             idx += 1
+       if other_nh > 0:
+          for i, bi in enumerate(other_meanjob): newsum[i] = cursum[i] + bi
+          ax.fill_between(datearray, cursum, newsum, facecolor='0.5', color='0.5')
+          recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='0.5'))
+          labels.append('Unknown')
+          cursum = list(newsum)
+       for i, bi in enumerate(meanjobsize): newsum[i] = cursum[i] + bi
+       ax.fill_between(datearray, cursum, newsum, facecolor='0.75', color='0.75')
+       recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='0.75'))
+       labels.append('All')
+       box = ax.get_position()
+       ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
+       fig.autofmt_xdate()
+       ax.set_xlabel('Date')
+       if units == "nodes":
+          ax.set_ylabel('Mean Job Size / Nodes')
+          ax.set_title('Mean job size over time')
+       elif units == "cores":
+          ax.set_ylabel('Mean Job Size / Cores')
+          ax.set_title('Mean job size over time')
+       ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+       plt.legend(recs, labels, bbox_to_anchor=(1.4, 1.0))
+       fig.savefig("{0}/meanjob_timeline.png".format(outDir))
 
-    # Plot a time profile of the overall node hours
-    fig = plt.figure(1)
-    ax = plt.subplot(1, 1, 1)
-    ax.cla()
-    idx = 0
-    recs = []
-    labels = []
-    cursum = []
-    newsum = []
-    for name in top_codes:
-       if code_nh[name] > 0:
-          colorVal = scalarMap.to_rgba(idx)
-          recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=colorVal))
-          labels.append(name)
-          if idx == 0:
-             ax.fill_between(datearray, 0, code_thours[name], facecolor=colorVal, color=colorVal)
-             cursum = list(code_thours[name])
-             newsum = list(cursum)
-          else:
-             for i, bi in enumerate(code_thours[name]): newsum[i] = cursum[i] + bi
-             ax.fill_between(datearray, cursum, newsum, facecolor=colorVal, color=colorVal)
-             cursum = list(newsum)
-          idx += 1
-    if other_nh > 0:
-       for i, bi in enumerate(other_thours): newsum[i] = cursum[i] + bi
-       ax.fill_between(datearray, cursum, newsum, facecolor='0.5', color='0.5')
-       recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='0.5'))
-       labels.append('Unknown')
-       cursum = list(newsum)
-    ax.plot(datearray, tot_thours, 'r-')
+       # Plot a time profile of the overall node hours
+       fig = plt.figure(1)
+       ax = plt.subplot(1, 1, 1)
+       ax.cla()
+       idx = 0
+       recs = []
+       labels = []
+       cursum = []
+       newsum = []
+       for name in top_codes:
+          if code_nh[name] > 0:
+             colorVal = scalarMap.to_rgba(idx)
+             recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=colorVal))
+             labels.append(name)
+             if idx == 0:
+                ax.fill_between(datearray, 0, code_thours[name], facecolor=colorVal, color=colorVal)
+                cursum = list(code_thours[name])
+                newsum = list(cursum)
+             else:
+                for i, bi in enumerate(code_thours[name]): newsum[i] = cursum[i] + bi
+                ax.fill_between(datearray, cursum, newsum, facecolor=colorVal, color=colorVal)
+                cursum = list(newsum)
+             idx += 1
+       if other_nh > 0:
+          for i, bi in enumerate(other_thours): newsum[i] = cursum[i] + bi
+          ax.fill_between(datearray, cursum, newsum, facecolor='0.5', color='0.5')
+          recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='0.5'))
+          labels.append('Unknown')
+          cursum = list(newsum)
+       ax.plot(datearray, tot_thours, 'r-')
 #     ax.fill_between(datearray, cursum, tot_thours, facecolor='0.75', color='0.75')
-    recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='r'))
-    labels.append('All')
-    ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Usage / ' + punit)
-    ax.set_title('Usage over time')
-    fig.autofmt_xdate()
-    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-    plt.legend(recs, labels, bbox_to_anchor=(1.4, 1.0))
-    fig.savefig("{0}/hours_timeline.png".format(outDir))
+       recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='r'))
+       labels.append('All')
+       ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
+       ax.set_xlabel('Date')
+       ax.set_ylabel('Usage / ' + punit)
+       ax.set_title('Usage over time')
+       fig.autofmt_xdate()
+       ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+       plt.legend(recs, labels, bbox_to_anchor=(1.4, 1.0))
+       fig.savefig("{0}/hours_timeline.png".format(outDir))
+    # End: if png
 
     # Bin the job sizes into the specified size bins and compute the mean job sizes
     # The tot arrays should contain keys with all the node counts encountered
@@ -638,44 +649,45 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     sys.stdout.write(lines + "\n")
 
     # Plot bar chart of usage against size
-
-    bar_labels = []
-    for i, bi in enumerate(size_labels):
-       bar_labels.append("{0}\n<{1:d} {2}".format(bi, uscale * sizes[i], units))
-    width = 0.7
-    fig = plt.figure(1)
-    fig.clf()
-    ax = plt.subplot(1, 1, 1)
-    nrow = len(btot_nh_bysize)
-    data = []
-    for size in sizes:
-       data.append(uscale * btot_nh_bysize[size])
-    pos = np.arange(nrow) - (width/2.0)
-    ax.bar(pos, data, width, color='0.75', alpha=0.75)
-    ax.set_xticks(np.arange(nrow))
-    ax.set_xticklabels(bar_labels)
-    ax.set_title('Usage by Job Size')
-    ax.set_ylabel('Usage / ' + punit)
-    fig.savefig("{0}/usagebysize_Total.png".format(outDir))
-
-    # Bar charts for each code
-    idx = 0
-    for name in top_codes:
+    if png:
+       bar_labels = []
+       for i, bi in enumerate(size_labels):
+          bar_labels.append("{0}\n<{1:d} {2}".format(bi, uscale * sizes[i], units))
+       width = 0.7
        fig = plt.figure(1)
+       fig.clf()
        ax = plt.subplot(1, 1, 1)
-       ax.cla()
+       nrow = len(btot_nh_bysize)
        data = []
        for size in sizes:
-          data.append(uscale * bcode_nh_bysize[(name,size)])
-       colorVal = scalarMap.to_rgba(idx)
-       ax.bar(pos, data, width, color=colorVal, edgecolor=colorVal, alpha=0.75)
-       idx += 1
+          data.append(uscale * btot_nh_bysize[size])
+       pos = np.arange(nrow) - (width/2.0)
+       ax.bar(pos, data, width, color='0.75', alpha=0.75)
        ax.set_xticks(np.arange(nrow))
        ax.set_xticklabels(bar_labels)
-       ax.set_xlim([-1,nrow])
-       ax.set_title('Usage by Job Size for ' + name)
+       ax.set_title('Usage by Job Size')
        ax.set_ylabel('Usage / ' + punit)
-       fig.savefig("{0}/usagebysize_{1}.png".format(outDir, name))
+       fig.savefig("{0}/usagebysize_Total.png".format(outDir))
+
+       # Bar charts for each code
+       idx = 0
+       for name in top_codes:
+          fig = plt.figure(1)
+          ax = plt.subplot(1, 1, 1)
+          ax.cla()
+          data = []
+          for size in sizes:
+             data.append(uscale * bcode_nh_bysize[(name,size)])
+          colorVal = scalarMap.to_rgba(idx)
+          ax.bar(pos, data, width, color=colorVal, edgecolor=colorVal, alpha=0.75)
+          idx += 1
+          ax.set_xticks(np.arange(nrow))
+          ax.set_xticklabels(bar_labels)
+          ax.set_xlim([-1,nrow])
+          ax.set_title('Usage by Job Size for ' + name)
+          ax.set_ylabel('Usage / ' + punit)
+          fig.savefig("{0}/usagebysize_{1}.png".format(outDir, name))
+    # End: if png
 
     # Jobs by job size
     sys.stdout.write("\n\nNumber of jobs by job size\n")
