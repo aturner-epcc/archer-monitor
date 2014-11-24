@@ -6,5 +6,5 @@
 #
 ssh espp1 "$ARCHER_MON_BASEDIR/monitoring/pp-nodes/cpu_and_mem_use.bash"
 ssh espp2 "$ARCHER_MON_BASEDIR/monitoring/pp-nodes/cpu_and_mem_use.bash"
-ssh espp1 "export ARCHER_MON_BASEDIR=$ARCHER_MON_BASEDIR; $ARCHER_MON_BASEDIR/monitoring/pp-nodes/slow_compile.bash espp1" >> $ARCHER_MON_LOGDIR/espp1_compile.log
-ssh espp2 "export ARCHER_MON_BASEDIR=$ARCHER_MON_BASEDIR; $ARCHER_MON_BASEDIR/monitoring/pp-nodes/slow_compile.bash espp2" >> $ARCHER_MON_LOGDIR/espp2_compile.log
+# ssh espp1 "export ARCHER_MON_BASEDIR=$ARCHER_MON_BASEDIR; $ARCHER_MON_BASEDIR/monitoring/pp-nodes/slow_compile.bash espp1" >> $ARCHER_MON_LOGDIR/espp1_compile.log
+# ssh espp2 "export ARCHER_MON_BASEDIR=$ARCHER_MON_BASEDIR; $ARCHER_MON_BASEDIR/monitoring/pp-nodes/slow_compile.bash espp2" >> $ARCHER_MON_LOGDIR/espp2_compile.log
