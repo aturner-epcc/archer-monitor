@@ -4,5 +4,9 @@
 #
 # Depends on ARCHER_MON_BASEDIR being set
 #
-python $ARCHER_MON_BASEDIR/reporting/usage/plot_usage.py $1 usage
+if [ $1 == "1d,2d" ]; then
+   python $ARCHER_MON_BASEDIR/reporting/usage/plot_usage.py $1 usage
+else
+   python $ARCHER_MON_BASEDIR/reporting/usage/plot_usage_single.py $1 usage
+fi
 python $ARCHER_MON_BASEDIR/reporting/usage/plot_queues.py $1 queues
