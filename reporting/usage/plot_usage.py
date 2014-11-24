@@ -83,14 +83,14 @@ for curperiod in repperiod:
         fdate = datetime.strptime(filedate, "%Y-%m-%d")
         if fdate >= startfile:
             # Read and average data from this file
-            (dates, usage) = compute_multiple_timeline(ncol, intervals[curperiod], file)
+            (dates, usage) = compute_multiple_timeline(ncol, intervals[curperiod], file, scale=24.0)
             alldates.extend(dates)
             for i in range(ncol):
                 allusage[i].extend(usage[i])
 
     imgfile = "{0}/{1}_{2}.png".format(outdir, filestem, curperiod)
     titles = ["Small\n(<96 cores)","Medium\n(<1536 cores)","Large\n(<6144 cores)","V. Large\n(<12,288 cores)","Huge\n(<118,080 cores)"]
-    plot_multiple_timeline(alldates, allusage[:][1:6], startdate, now, 'Node Hours', titles, imgfile, stacked=True)
+    plot_multiple_timeline(alldates, allusage[:][1:6], startdate, now, 'Cores', titles, imgfile, stacked=True, ymax=24.0*4920)
 
 sys.exit(0)
 
