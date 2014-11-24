@@ -158,7 +158,8 @@ def plot_timeline(timelabels, timeline, datemin, datemax, label, axislabel,
     fig.savefig(outfile)
 
 def plot_multiple_timeline(timelabels, timeline, datemin, datemax, 
-                           axislabel, titles, outfile, totals=True, ymax=None):
+                           axislabel, titles, outfile, totals=True, ymax=None,
+                           stacked=False):
     """
     Plot a timeline
     """
@@ -168,8 +169,16 @@ def plot_multiple_timeline(timelabels, timeline, datemin, datemax,
     matplotlib.use("Agg")
     from matplotlib import pyplot as plt
     from matplotlib import dates
+    import matplotlib.colors as colors
+    import matplotlib.cm as cmx
+    import matplotlib.patches as mpatches
 
     n = len(timeline)
+
+    # Set up a nice colormap to vary the line colours
+    colmap = cm = plt.get_cmap('YlOrRd') 
+    cNorm  = colors.Normalize(vmin=0, vmax=n+1)
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=colmap)
 
     total = []
     if totals:
@@ -179,16 +188,36 @@ def plot_multiple_timeline(timelabels, timeline, datemin, datemax,
                 sum += timeline[j][i]
             total.append(sum)
 
+    # Common setup
     fig = plt.figure(1)
     ax = plt.subplot(1, 1, 1)
     ax.cla()
     ax.set_ylabel(axislabel)
-    for i in range(n):
-        ax.plot(timelabels, timeline[:][i], label=titles[i])
-    if totals:
-        ax.plot(timelabels, total, linewidth=0.0)
-        ax.fill_between(timelabels, 0, total, facecolor='grey', alpha=0.25)
-    ax.legend()
+
+    if stacked:
+       recs = []
+       cursum = []
+       newsum = []
+       idx = 0
+       for i in range(n):
+          colorVal = scalarMap.to_rgba(i)
+          recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=colorVal))
+          if i == 0:
+             ax.fill_between(timelabels, 0, timeline[:][i], facecolor=colorVal, color=colorVal)
+             cursum = list(timeline[:][i])
+             newsum = list(cursum)
+          else:
+             for j, bj in enumerate(timeline[:][i]): newsum[j] = cursum[j] + bj
+             ax.fill_between(timelabels, cursum, newsum, facecolor=colorVal, color=colorVal)
+             cursum = list(newsum)
+    else:
+       for i in range(n):
+          ax.plot(timelabels, timeline[:][i], label=titles[i])
+       if totals:
+          ax.plot(timelabels, total, linewidth=0.0)
+          ax.fill_between(timelabels, 0, total, facecolor='grey', alpha=0.25)
+
+    # Common finalisation
     ax.set_xlim((datemin, datemax))
     if ymax is not None:
         ax.set_ylim((0, ymax))
@@ -196,5 +225,14 @@ def plot_multiple_timeline(timelabels, timeline, datemin, datemax,
         ax.set_ylim(bottom=0)
     ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
     fig.autofmt_xdate()
+
+    # Legend
+    if stacked:
+       box = ax.get_position()
+       ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+       plt.legend(recs, titles, bbox_to_anchor=(1.38, 1.0))
+    else:
+       ax.legend()
+
     fig.savefig(outfile)
 
