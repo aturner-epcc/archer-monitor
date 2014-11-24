@@ -5,14 +5,14 @@
 # PYTHONPATH including $ARCHER_MON_BASEDIR/reporting/modules
 #
 # Usage example:
-#  plot_usage.py 1d,2d usage 
+#  plot_queues.py 1d,2d queues 
 #
 # First argument is list of periods to plot, second argument is
 # the stem to use for the output filename
 #
 
 # Custom Python module in $ARCHER_MON_BASEDIR/reporting/modules
-from timelineplot import compute_timeline, get_filelist, plot_timeline
+from timelineplot import compute_multiple_timeline, get_filelist, plot_timeline, plot_multiple_timeline
 
 from datetime import datetime, timedelta
 import sys
@@ -21,11 +21,10 @@ import os
 ###############################################################
 # Configuration section
 ###############################################################
+ncol = 6 # This is the number of columns of y-data in the log files
+
 indir = os.environ['ARCHER_MON_LOGDIR'] + '/usage'
 outdir = os.environ['ARCHER_MON_OUTDIR'] + '/usage'
-
-# Maximum number of nodes on the system
-maxnodes = 4920
 
 # Valid reporting periods
 periods = ['1d', '2d', '1w', '1m', '1q', '1y']
@@ -77,20 +76,21 @@ for curperiod in repperiod:
     startdate = now - timedelta(days=days[curperiod])
 
     alldates = []
-    allusage = []
+    allusage = [[] for x in xrange(0,ncol)]
     for file in files:
         filename = os.path.basename(file)
         filedate = filename.split('.')[0]
         fdate = datetime.strptime(filedate, "%Y-%m-%d")
         if fdate >= startfile:
             # Read and average data from this file
-            (dates, usage) = compute_timeline(intervals[curperiod], file)
+            (dates, usage) = compute_multiple_timeline(ncol, intervals[curperiod], file)
             alldates.extend(dates)
-            allusage.extend(usage)
+            for i in range(ncol):
+                allusage[i].extend(usage[i])
 
     imgfile = "{0}/{1}_{2}.png".format(outdir, filestem, curperiod)
-    plot_timeline(alldates, allusage, startdate, now, 'Usage', 'Nodes',
-                  imgfile, ymax=maxnodes)
+    titles = ["Small\n(<96 cores)","Medium\n(<1536 cores)","Large\n(<6144 cores)","V. Large\n(<12,288 cores)","Huge\n(<118,080 cores)"]
+    plot_multiple_timeline(alldates, allusage[:][1:6], startdate, now, 'Node Hours', titles, imgfile, stacked=True)
 
 sys.exit(0)
 
