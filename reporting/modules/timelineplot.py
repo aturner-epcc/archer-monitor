@@ -159,7 +159,7 @@ def plot_timeline(timelabels, timeline, datemin, datemax, label, axislabel,
 
 def plot_multiple_timeline(timelabels, timeline, datemin, datemax, 
                            axislabel, titles, outfile, totals=True, ymax=None,
-                           stacked=False):
+                           stacked=False, reverse=False):
     """
     Plot a timeline
     """
@@ -200,15 +200,19 @@ def plot_multiple_timeline(timelabels, timeline, datemin, datemax,
        newsum = []
        idx = 0
        for i in range(n):
-          colorVal = scalarMap.to_rgba(i)
+          if reverse:
+             k = (n-1) - i
+          else:
+             k = i
+          colorVal = scalarMap.to_rgba(k)
           recs.append(mpatches.Rectangle((0, 0), 1, 1, fc=colorVal))
           if i == 0:
-             ax.fill_between(timelabels, 0, timeline[:][i], facecolor=colorVal, color=colorVal)
-             cursum = list(timeline[:][i])
+             ax.fill_between(timelabels, 0, timeline[:][k], facecolor=colorVal, color=colorVal, linewidth=0.0)
+             cursum = list(timeline[:][k])
              newsum = list(cursum)
           else:
-             for j, bj in enumerate(timeline[:][i]): newsum[j] = cursum[j] + bj
-             ax.fill_between(timelabels, cursum, newsum, facecolor=colorVal, color=colorVal)
+             for j, bj in enumerate(timeline[:][k]): newsum[j] = cursum[j] + bj
+             ax.fill_between(timelabels, cursum, newsum, facecolor=colorVal, color=colorVal, linewidth=0.0)
              cursum = list(newsum)
     else:
        for i in range(n):
@@ -229,8 +233,10 @@ def plot_multiple_timeline(timelabels, timeline, datemin, datemax,
     # Legend
     if stacked:
        box = ax.get_position()
-       ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
-       plt.legend(recs, titles, bbox_to_anchor=(1.38, 1.0))
+       ax.set_position([box.x0, box.y0, box.width * 0.77, box.height])
+       if reverse:
+          titles.reverse()
+       plt.legend(recs, titles, bbox_to_anchor=(1.46, 1.0))
     else:
        ax.legend()
 

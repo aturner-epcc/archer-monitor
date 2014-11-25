@@ -89,7 +89,7 @@ for curperiod in repperiod:
                 allusage[i].extend(usage[i])
 
     imgfile = "{0}/{1}_{2}.png".format(outdir, filestem, curperiod)
-    titles = ["Small\n(<96 cores)","Medium\n(<1536 cores)","Large\n(<6144 cores)","V. Large\n(<12,288 cores)","Huge\n(<118,080 cores)"]
+    titles = ["Small\n(0-96 cores)","Medium\n(97-1,536 cores)","Large\n(1,537-6,144 cores)","V. Large\n(6,145-12,288 cores)","Huge\n(12,289-118,080 cores)"]
     plot_multiple_timeline(alldates, allusage[:][1:6], startdate, now, 'Cores', titles, imgfile, stacked=True, ymax=24.0*4920)
 
 sys.exit(0)
