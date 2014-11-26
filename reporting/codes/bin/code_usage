@@ -82,6 +82,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     units = "nodes"
     punit = "Nh"
     uscale = 1
+    # Default logfile directory
+    DEFAULT_LOGFILE_DIR = "/home/z01/z01/archstat/archer-monitor/logs/applications"
 
     #=======================================================
     # Read any code definitions
@@ -153,7 +155,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     userlist = []
     startfile = datetime.utcfromtimestamp(0)
     endfile = datetime.now()
-    indir = "/home/z01/z01/archstat/archer-monitor/logs/applications"
+    indir = DEFAULT_LOGFILE_DIR
     for opt, arg in opts:
         if opt in ("-c", "--cores"):
             print "Cores per node: ", arg
@@ -161,8 +163,10 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             punit = "CPUh"
             uscale = int(arg)
         elif opt in ("-x", "--noplot"):
+            print "Graph plotting disabled"
             png = False
         elif opt in ("-t", "--csv"):
+            print "CSV file production enabled"
             csv = True
         elif opt in ("-b", "--bins"):
             # Try to read in custom size bins from file
@@ -247,6 +251,11 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
    
     startdate = None
     enddate = None
+
+    # Open CSV files for time series data
+    if csv:
+       totcsv = open("tot_ts.csv", "w")
+       totcsv.write("{0},{1},{2},{3}\n".format("Date", "Mean Job Size", "Total Usage", "Number of Jobs"))
     for file in files:
      filename = os.path.basename(file)
      filedate = filename.split('.')[0]
@@ -279,7 +288,6 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             if re.match("__START", line) is not None:
                timeline = line.rstrip()
                tokens = timeline.split()
-               thistime = int(time.mktime(time.strptime(tokens[1], "%Y-%m-%d")))
             # End of if start block match
 
             # If we are in the time range then accumulate data
@@ -405,10 +413,14 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                meanjobsize.append(mjobsize)
                tot_thours.append(uscale * nfilenodeh)
                tot_tjobs.append(nfilejobs)
+               if csv:
+                  totcsv.write("{0},{1:.4f},{2:d},{3:d}\n".format(filedate, mjobsize, uscale*nfilenodeh, nfilejobs))
             else:
                meanjobsize.append(0)
                tot_thours.append(0)
                tot_tjobs.append(0)
+               if csv:
+                  totcsv.write("{0},{1:.4f},{2d},{3:d}\n".format(filedate, 0, 0, 0))
             for code in codes:
                name = code.name
                if code_filenh[name] > 0:
@@ -430,6 +442,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             daycounter = 0
 
     # End of loop over logfiles
+    totcsv.close()
     sys.stdout.write("\n")
 
     sys.stdout.write(" Started at: " + startdate.strftime("%Y-%m-%d") + "\n")
