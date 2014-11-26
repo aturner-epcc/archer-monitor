@@ -17,6 +17,7 @@ nqueue=`echo $lowqueue | awk '{print $7}'`
 # Write the start indicator and timestamp 
 TIME=`date --rfc-3339=seconds`
 DATE=`date --rfc-3339=date`
+NICEDATE=`date +"%H:%M, %A %d %B %Y"`
 
 # Add info to log
 logfile="$ARCHER_MON_LOGDIR/usage/$DATE.low"
@@ -34,12 +35,14 @@ then
 cat > $htmlfile <<EOF
 <div id="machine_status_up">
    <p>Low Priority: <span style="color: green">Enabled</span></p>
+   <p>Last Updated: $NICEDATE</p>
 </div>
 EOF
 else
 cat > $htmlfile <<EOF
 <div id="machine_status_down">
    <p>Low Priority: <span style="color: red">Disabled</span></p>
+   <p>Last Updated: $NICEDATE</p>
 </div>
 EOF
 fi
