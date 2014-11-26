@@ -143,8 +143,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:xth", 
-                 ["bins=", "logdir=", "interval=", "start=", "end=", "cores=", "group=", "noplot", "csv", "help"])
+        opts, args = getopt.getopt(argv, "u:b:l:i:s:e:c:g:qxth", 
+                 ["thresh=", "bins=", "logdir=", "interval=", "start=", "end=", "cores=", "group=", "quiet", "noplot", "csv", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
@@ -152,6 +152,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     byuser = False
     csv = False
     png = True
+    text = True
     userlist = []
     startfile = datetime.utcfromtimestamp(0)
     endfile = datetime.now()
@@ -162,6 +163,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             units = "cores"
             punit = "CPUh"
             uscale = int(arg)
+        elif opt in ("-q", "--quiet"):
+            print "Text output disabled"
+            text = False
         elif opt in ("-x", "--noplot"):
             print "Graph plotting disabled"
             png = False
@@ -183,6 +187,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                print "**ERROR - Histogram bins file is not valid: " + arg
                printHelp(rootDir)
                exit(0)
+        elif opt in ("-u", "--thresh"):
+            thresh = float(arg)
         elif opt in ("-l", "--logdir"):
             indir = arg
         elif opt in ("-i", "--interval"):
@@ -213,7 +219,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        exit(0)
 
     # Read the name of the logfile directory and open it
-    sys.stdout.write("Analysing data in: {0}\n".format(indir))
+    if text:
+       sys.stdout.write("Analysing data in: {0}\n".format(indir))
     files = get_filelist(indir, 'apstat')
 
     # Initialise the arrays for storing the time sequence
@@ -442,11 +449,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             daycounter = 0
 
     # End of loop over logfiles
-    totcsv.close()
-    sys.stdout.write("\n")
+    if csv:
+       totcsv.close()
 
-    sys.stdout.write(" Started at: " + startdate.strftime("%Y-%m-%d") + "\n")
-    sys.stdout.write("Finished at: " + enddate.strftime("%Y-%m-%d") + "\n")
+    if text:
+       sys.stdout.write("\n Started at: " + startdate.strftime("%Y-%m-%d") + "\n")
+       sys.stdout.write("Finished at: " + enddate.strftime("%Y-%m-%d") + "\n")
 
     # Get list of the top 10 codes by node hours
     top_codes = [k for k in sorted(code_nh, key=code_nh.get, reverse=True)[:ntop]]
@@ -625,41 +633,42 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
              break
 
     # Node hours by job size
-    if units == "nodes":
-       sys.stdout.write("\n\nNode hours by job size (in nodes)\n")
-    elif units == "cores":
-       sys.stdout.write("\n\nCPUh by job size (in cores)\n")
-    head = "{0:>20s}".format("Code")
-    lines = "{0:>20s}".format("====")
-    for size in size_labels:
-       head = head + "{0:>20s}".format(size)
-       lines = lines + "{0:>20s}".format("=====")
-    limits = "{0:>20s}".format("")
-    for size in sizes:
-       t = "<{0:d} {1}".format(uscale * size, units)
-       limits = limits + "{0:>20s}".format(t)
-    sys.stdout.write(head + "\n" + limits + "\n" + lines + "\n")
-    for name in sorted(code_nh, key=code_nh.get, reverse=True):
-       sys.stdout.write("{0:>20s}".format(name))
+    if text:
+       if units == "nodes":
+          sys.stdout.write("\n\nNode hours by job size (in nodes)\n")
+       elif units == "cores":
+          sys.stdout.write("\n\nCPUh by job size (in cores)\n")
+       head = "{0:>20s}".format("Code")
+       lines = "{0:>20s}".format("====")
+       for size in size_labels:
+          head = head + "{0:>20s}".format(size)
+          lines = lines + "{0:>20s}".format("=====")
+       limits = "{0:>20s}".format("")
        for size in sizes:
-          sys.stdout.write("{0:20d}".format(uscale * bcode_nh_bysize[(name, size)]))
+          t = "<{0:d} {1}".format(uscale * size, units)
+          limits = limits + "{0:>20s}".format(t)
+       sys.stdout.write(head + "\n" + limits + "\n" + lines + "\n")
+       for name in sorted(code_nh, key=code_nh.get, reverse=True):
+          sys.stdout.write("{0:>20s}".format(name))
+          for size in sizes:
+             sys.stdout.write("{0:20d}".format(uscale * bcode_nh_bysize[(name, size)]))
+          sys.stdout.write("\n")
+       sys.stdout.write("{0:>20s}".format("Unknown"))
+       for size in sizes:
+          sys.stdout.write("{0:>20d}".format(uscale * bother_nh_bysize[size]))
        sys.stdout.write("\n")
-    sys.stdout.write("{0:>20s}".format("Unknown"))
-    for size in sizes:
-       sys.stdout.write("{0:>20d}".format(uscale * bother_nh_bysize[size]))
-    sys.stdout.write("\n")
-    lines = "{0:>20s}".format("----")
-    for size in sizes:
-       lines = lines + "{0:>20s}".format("-----")
-    sys.stdout.write(lines + "\n")
-    sys.stdout.write("{0:>20s}".format("Total"))
-    for size in sizes:
-       sys.stdout.write("{0:>20d}".format(uscale * btot_nh_bysize[size]))
-    sys.stdout.write("\n")
-    lines = "{0:>20s}".format("====")
-    for size in sizes:
-       lines = lines + "{0:>20s}".format("====")
-    sys.stdout.write(lines + "\n")
+       lines = "{0:>20s}".format("----")
+       for size in sizes:
+          lines = lines + "{0:>20s}".format("-----")
+       sys.stdout.write(lines + "\n")
+       sys.stdout.write("{0:>20s}".format("Total"))
+       for size in sizes:
+          sys.stdout.write("{0:>20d}".format(uscale * btot_nh_bysize[size]))
+       sys.stdout.write("\n")
+       lines = "{0:>20s}".format("====")
+       for size in sizes:
+          lines = lines + "{0:>20s}".format("====")
+       sys.stdout.write(lines + "\n")
 
     # Plot bar chart of usage against size
     if png:
@@ -703,68 +712,70 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # End: if png
 
     # Jobs by job size
-    sys.stdout.write("\n\nNumber of jobs by job size\n")
-    head = "{0:>20s}".format("Code")
-    lines = "{0:>20s}".format("====")
-    for size in size_labels:
-       head = head + "{0:>20s}".format(size)
-       lines = lines + "{0:>20s}".format("=====")
-    limits = "{0:>20s}".format("")
-    for size in sizes:
-       t = "<{0:d} {1}".format(uscale * size, units)
-       limits = limits + "{0:>20s}".format(t)
-    sys.stdout.write(head + "\n" + limits + "\n" + lines + "\n")
-    for name in sorted(code_nh, key=code_nh.get, reverse=True):
-       sys.stdout.write("{0:>20s}".format(name))
+    if text:
+       sys.stdout.write("\n\nNumber of jobs by job size\n")
+       head = "{0:>20s}".format("Code")
+       lines = "{0:>20s}".format("====")
+       for size in size_labels:
+          head = head + "{0:>20s}".format(size)
+          lines = lines + "{0:>20s}".format("=====")
+       limits = "{0:>20s}".format("")
        for size in sizes:
-          sys.stdout.write("{0:20d}".format(bcode_jobs_bysize[(name, size)]))
+          t = "<{0:d} {1}".format(uscale * size, units)
+          limits = limits + "{0:>20s}".format(t)
+       sys.stdout.write(head + "\n" + limits + "\n" + lines + "\n")
+       for name in sorted(code_nh, key=code_nh.get, reverse=True):
+          sys.stdout.write("{0:>20s}".format(name))
+          for size in sizes:
+             sys.stdout.write("{0:20d}".format(bcode_jobs_bysize[(name, size)]))
+          sys.stdout.write("\n")
+       sys.stdout.write("{0:>20s}".format("Unknown"))
+       for size in sizes:
+          sys.stdout.write("{0:>20d}".format(bother_jobs_bysize[size]))
        sys.stdout.write("\n")
-    sys.stdout.write("{0:>20s}".format("Unknown"))
-    for size in sizes:
-       sys.stdout.write("{0:>20d}".format(bother_jobs_bysize[size]))
-    sys.stdout.write("\n")
-    lines = "{0:>20s}".format("----")
-    for size in sizes:
-       lines = lines + "{0:>20s}".format("-----")
-    sys.stdout.write(lines + "\n")
-    sys.stdout.write("{0:>20s}".format("Total"))
-    for size in sizes:
-       sys.stdout.write("{0:>20d}".format(btot_jobs_bysize[size]))
-    sys.stdout.write("\n")
-    lines = "{0:>20s}".format("====")
-    for size in sizes:
-       lines = lines + "{0:>20s}".format("====")
-    sys.stdout.write(lines + "\n")
+       lines = "{0:>20s}".format("----")
+       for size in sizes:
+          lines = lines + "{0:>20s}".format("-----")
+       sys.stdout.write(lines + "\n")
+       sys.stdout.write("{0:>20s}".format("Total"))
+       for size in sizes:
+          sys.stdout.write("{0:>20d}".format(btot_jobs_bysize[size]))
+       sys.stdout.write("\n")
+       lines = "{0:>20s}".format("====")
+       for size in sizes:
+          lines = lines + "{0:>20s}".format("====")
+       sys.stdout.write(lines + "\n")
 
     # Loop over codes printing usage
-    if units == 'nodes':
-       sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
-    elif units == 'cores':
-       sys.stdout.write("\n\nTotal code usage (ordered by CPUh)\n")
-      
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs", "Users", "Mean", "Median"))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("====", "==========", "======", "====", "======", "=====", "====", "======"))
-    for name in sorted(code_nh, key=code_nh.get, reverse=True):
-       nhfrac = 100 * float(code_nh[name])/float(totnh)
-       jobfrac = 100 * float(code_jobs[name])/float(totjobs)
+    if text:
+       if units == 'nodes':
+          sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
+       elif units == 'cores':
+          sys.stdout.write("\n\nTotal code usage (ordered by CPUh)\n")
+         
+       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs", "Users", "Mean", "Median"))
+       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("====", "==========", "======", "====", "======", "=====", "====", "======"))
+       for name in sorted(code_nh, key=code_nh.get, reverse=True):
+          nhfrac = 100 * float(code_nh[name])/float(totnh)
+          jobfrac = 100 * float(code_jobs[name])/float(totjobs)
+          meanjob = 0.0
+          if code_nh[name] > 0:
+             meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
+          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+       nhfrac = 100 * float(other_nh)/float(totnh)
+       jobfrac = 100 * float(other_jobs)/float(totjobs)
        meanjob = 0.0
-       if code_nh[name] > 0:
-          meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
-    nhfrac = 100 * float(other_nh)/float(totnh)
-    jobfrac = 100 * float(other_jobs)/float(totjobs)
-    meanjob = 0.0
-    if other_nh > 0:
-       meanjob = float(other_sum_jobs_size)/float(other_nh)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("----", "----------", "------", "----", "------", "-----", "----", "------"))
-    nhfrac = 100 * float(totnh)/float(totnh)
-    jobfrac = 100 * float(totjobs)/float(totjobs)
-    meanjob = 0.0
-    if totnh > 0:
-       meanjob = float(tot_sum_jobs_size)/float(totnh)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("====", "==========", "======", "====", "======", "=====", "====", "======"))
+       if other_nh > 0:
+          meanjob = float(other_sum_jobs_size)/float(other_nh)
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
+       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("----", "----------", "------", "----", "------", "-----", "----", "------"))
+       nhfrac = 100 * float(totnh)/float(totnh)
+       jobfrac = 100 * float(totjobs)/float(totjobs)
+       meanjob = 0.0
+       if totnh > 0:
+          meanjob = float(tot_sum_jobs_size)/float(totnh)
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
+       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("====", "==========", "======", "====", "======", "=====", "====", "======"))
 
 
     # Aggregate results on code metadata
@@ -780,24 +791,25 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           lang_nh[lang] = code_nh[name]
           lang_jobs[lang] = code_jobs[name]
     # Loop over codes printing usage
-    if units == 'nodes':
-       sys.stdout.write("\n\nTotal language usage (ordered by node hours)\n")
-    elif units == 'cores':
-       sys.stdout.write("\n\nTotal language usage (ordered by CPUh)\n")
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-    for lang in sorted(lang_nh, key=lang_nh.get, reverse=True):
-       nhfrac = 100 * float(lang_nh[lang])/float(totnh)
-       jobfrac = 100 * float(lang_jobs[lang])/float(totjobs)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(lang, uscale * lang_nh[lang], nhfrac, lang_jobs[lang], jobfrac))
-    nhfrac = 100 * float(other_nh)/float(totnh)
-    jobfrac = 100 * float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
-    nhfrac = 100 * float(totnh)/float(totnh)
-    jobfrac = 100 * float(totjobs)/float(totjobs)
-    sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
-    sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    if text:
+       if units == 'nodes':
+          sys.stdout.write("\n\nTotal language usage (ordered by node hours)\n")
+       elif units == 'cores':
+          sys.stdout.write("\n\nTotal language usage (ordered by CPUh)\n")
+       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
+       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+       for lang in sorted(lang_nh, key=lang_nh.get, reverse=True):
+          nhfrac = 100 * float(lang_nh[lang])/float(totnh)
+          jobfrac = 100 * float(lang_jobs[lang])/float(totjobs)
+          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(lang, uscale * lang_nh[lang], nhfrac, lang_jobs[lang], jobfrac))
+       nhfrac = 100 * float(other_nh)/float(totnh)
+       jobfrac = 100 * float(other_jobs)/float(totjobs)
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
+       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+       nhfrac = 100 * float(totnh)/float(totnh)
+       jobfrac = 100 * float(totjobs)/float(totjobs)
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
+       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Aggregate results on type metadata
     meta_nh = {}
@@ -812,24 +824,25 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           meta_nh[meta] = code_nh[name]
           meta_jobs[meta] = code_jobs[name]
     # Loop over codes printing usage
-    if units == 'nodes':
-       sys.stdout.write("\n\nTotal type usage (ordered by node hours)\n")
-    elif units == 'cores':
-       sys.stdout.write("\n\nTotal type usage (ordered by CPUh)\n")
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-    for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
-       nhfrac = 100 * float(meta_nh[meta])/float(totnh)
-       jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
-    nhfrac = 100 * float(other_nh)/float(totnh)
-    jobfrac = 100 * float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
-    nhfrac = 100 * float(totnh)/float(totnh)
-    jobfrac = 100 * float(totjobs)/float(totjobs)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    if text:
+       if units == 'nodes':
+          sys.stdout.write("\n\nTotal type usage (ordered by node hours)\n")
+       elif units == 'cores':
+          sys.stdout.write("\n\nTotal type usage (ordered by CPUh)\n")
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
+          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
+          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+       nhfrac = 100 * float(other_nh)/float(totnh)
+       jobfrac = 100 * float(other_jobs)/float(totjobs)
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+       nhfrac = 100 * float(totnh)/float(totnh)
+       jobfrac = 100 * float(totjobs)/float(totjobs)
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Aggregate results on type metadata
     meta_nh = {}
@@ -844,43 +857,45 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           meta_nh[meta] = code_nh[name]
           meta_jobs[meta] = code_jobs[name]
     # Loop over codes printing usage
-    if units == 'nodes':
-       sys.stdout.write("\n\nTotal research area usage (ordered by node hours)\n")
-    elif units == 'cores':
-       sys.stdout.write("\n\nTotal research area usage (ordered by CPUh)\n")
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-    for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
-       nhfrac = 100 * float(meta_nh[meta])/float(totnh)
-       jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
-    nhfrac = 100 * float(other_nh)/float(totnh)
-    jobfrac = 100 * float(other_jobs)/float(totjobs)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
-    nhfrac = 100 * float(totnh)/float(totnh)
-    jobfrac = 100 * float(totjobs)/float(totjobs)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    if text:
+       if units == 'nodes':
+          sys.stdout.write("\n\nTotal research area usage (ordered by node hours)\n")
+       elif units == 'cores':
+          sys.stdout.write("\n\nTotal research area usage (ordered by CPUh)\n")
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
+          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
+          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+       nhfrac = 100 * float(other_nh)/float(totnh)
+       jobfrac = 100 * float(other_jobs)/float(totjobs)
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+       nhfrac = 100 * float(totnh)/float(totnh)
+       jobfrac = 100 * float(totjobs)/float(totjobs)
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Print out any other executables with usage over defined threshold
     percent = thresh * float(totnh)
-    if units == 'nodes':
-       sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total node hours:\n".format(100*thresh))
-    elif units == 'cores':
-       sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total CPUh:\n".format(100*thresh))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("Code", punit, "% Time"))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
-    other_tot = 0
-    for name in sorted(other_codes, key=other_codes.get, reverse=True):
-       if other_codes[name] > percent:
-          nhfrac = 100 * float(other_codes[name])/float(totnh)
-          other_tot += int(other_codes[name])
-          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format(name, uscale * other_codes[name], nhfrac))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("----", "----------", "------"))
-    nhfrac = 100 * float(other_tot)/float(totnh)
-    sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format("Total", uscale * other_tot, nhfrac))
-    sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
+    if text:
+       if units == 'nodes':
+          sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total node hours:\n".format(100*thresh))
+       elif units == 'cores':
+          sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total CPUh:\n".format(100*thresh))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("Code", punit, "% Time"))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
+       other_tot = 0
+       for name in sorted(other_codes, key=other_codes.get, reverse=True):
+          if other_codes[name] > percent:
+             nhfrac = 100 * float(other_codes[name])/float(totnh)
+             other_tot += int(other_codes[name])
+             sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format(name, uscale * other_codes[name], nhfrac))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("----", "----------", "------"))
+       nhfrac = 100 * float(other_tot)/float(totnh)
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format("Total", uscale * other_tot, nhfrac))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
 
 
     # Finish nicely
