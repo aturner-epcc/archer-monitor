@@ -54,19 +54,6 @@ import time
 
 def main(argv):
 
-    #=======================================================
-    # Print out the banner
-    #=======================================================
-    sys.stderr.write("""
-===========================================================================
-code_usage {0}
----------------------------------------------------------------------------
-Copyright 2012-2014  EPCC, The University of Edinburgh
-This program comes with ABSOLUTELY NO WARRANTY. This is free software, and
-you are welcome to redistribute it under certain conditions. See the GNU
-General Public License for more details: <http://www.gnu.org/licenses/>.
-===========================================================================
-""".format(__version__))
 
     #=======================================================
     # Global configuration section
@@ -82,6 +69,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     units = "nodes"
     punit = "Nh"
     uscale = 1
+    html = False
     # Default logfile directory
     DEFAULT_LOGFILE_DIR = "/home/z01/z01/archstat/archer-monitor/logs/applications"
 
@@ -143,8 +131,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "u:b:l:i:s:e:c:g:qxth", 
-                 ["thresh=", "bins=", "logdir=", "interval=", "start=", "end=", "cores=", "group=", "quiet", "noplot", "csv", "help"])
+        opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:qh", 
+                 ["top=", "thresh=", "bins=", "logdir=", "interval=", "start=",
+                  "end=", "cores=", "group=", "html", "quiet", "noplot", "csv", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
@@ -154,23 +143,24 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     png = True
     text = True
     userlist = []
+    group = None
     startfile = datetime.utcfromtimestamp(0)
     endfile = datetime.now()
     indir = DEFAULT_LOGFILE_DIR
     for opt, arg in opts:
         if opt in ("-c", "--cores"):
-            print "Cores per node: ", arg
             units = "cores"
             punit = "CPUh"
             uscale = int(arg)
         elif opt in ("-q", "--quiet"):
-            print "Text output disabled"
             text = False
-        elif opt in ("-x", "--noplot"):
-            print "Graph plotting disabled"
+        elif opt in ("--top"):
+            ntop = int(arg)
+        elif opt in ("--noplot"):
             png = False
-        elif opt in ("-t", "--csv"):
-            print "CSV file production enabled"
+        elif opt in ("--html"):
+            html = True
+        elif opt in ("--csv"):
             csv = True
         elif opt in ("-b", "--bins"):
             # Try to read in custom size bins from file
@@ -187,7 +177,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                print "**ERROR - Histogram bins file is not valid: " + arg
                printHelp(rootDir)
                exit(0)
-        elif opt in ("-u", "--thresh"):
+        elif opt in ("--thresh"):
             thresh = float(arg)
         elif opt in ("-l", "--logdir"):
             indir = arg
@@ -198,7 +188,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
         elif opt in ("-e", "--end"):
             endfile = datetime.strptime(arg, "%Y-%m-%d")
         elif opt in ("-g", "--group"):
-            print "Restricting usage to group: " + arg
+            group = arg
             bashCommand = "ldapsearch -x cn={0}".format(arg)
             ldap = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
             users = ldap.communicate()[0]
@@ -212,15 +202,35 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             printHelp(rootDir)
             exit(0)
 
+
+    if text:
+       #=======================================================
+       # Print out the banner
+       #=======================================================
+       sys.stderr.write("""
+===========================================================================
+code_usage {0}
+---------------------------------------------------------------------------
+Copyright 2012-2014  EPCC, The University of Edinburgh
+This program comes with ABSOLUTELY NO WARRANTY. This is free software, and
+you are welcome to redistribute it under certain conditions. See the GNU
+General Public License for more details: <http://www.gnu.org/licenses/>.
+===========================================================================
+""".format(__version__))
+       sys.stdout.write("Analysing data in: {0}\n".format(indir))
+       print "Number of high usage codes: ", ntop
+       if uscale > 1:
+          print "Cores per node: ", uscale
+       if group is not None:
+          print "Restricting usage to group: " + group
+
     # Check the directory exists
     if not os.path.isdir(indir):
        print "**ERROR - Log directory is not valid: " + indir
        printHelp(rootDir)
        exit(0)
 
-    # Read the name of the logfile directory and open it
-    if text:
-       sys.stdout.write("Analysing data in: {0}\n".format(indir))
+    # Read the logfile directory
     files = get_filelist(indir, 'apstat')
 
     # Initialise the arrays for storing the time sequence
@@ -776,6 +786,47 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           meanjob = float(tot_sum_jobs_size)/float(totnh)
        sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
        sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("====", "==========", "======", "====", "======", "=====", "====", "======"))
+
+    # Write HTML table if required
+    if html:
+       htmlfile = open("top.html", "w")
+       if units == 'nodes':
+          htmlfile.write("<p>Code usage for top {0:d} codes (ordered by node hours)</p>\n".format(ntop))
+       elif units == 'cores':
+          htmlfile.write("<p>Code usage for top {0:d} codes (ordered by CPUh)</p>\n".format(ntop))
+       htmlfile.write("""
+<table class="cse-table">
+   <tr>
+      <th>Code Name</th>
+      <th>{0}</th>
+      <th>% {0}</th>
+      <th>Jobs</th>
+      <th>% Jobs</th>
+      <th>Users</th>
+      <th>Mean Job Size</th>
+      <th>Median Job Size</th>
+   </tr>
+""".format(punit))
+       for name in top_codes:
+          nhfrac = 100 * float(code_nh[name])/float(totnh)
+          jobfrac = 100 * float(code_jobs[name])/float(totjobs)
+          meanjob = 0.0
+          if code_nh[name] > 0:
+             meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
+          htmlfile.write("""
+   <tr>      
+      <td>{0}</td>
+      <td>{1:d}</td>
+      <td>{2:.2f}</td>
+      <td>{3:d}</td>
+      <td>{4:.2f}</td>
+      <td>{5:d}</td>
+      <td>{6:.2f}</td>
+      <td>{7:d}</td>
+   </tr>      
+""".format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+       htmlfile.write("</table>\n")
+       htmlfile.close()
 
 
     # Aggregate results on code metadata
