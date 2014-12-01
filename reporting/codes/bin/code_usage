@@ -828,6 +828,30 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        htmlfile.write("</table>\n")
        htmlfile.close()
 
+    if csv:
+       csvfile = open("code_summary.csv", "w")
+       csvfile.write('"{0}","{1}","{2}","{3}","{4}","{5}","{6}","{7}"\n'.format("Code", punit, "% Time", "Jobs", "% Jobs", "Users", "Mean", "Median"))
+       for name in sorted(code_nh, key=code_nh.get, reverse=True):
+          nhfrac = 100 * float(code_nh[name])/float(totnh)
+          jobfrac = 100 * float(code_jobs[name])/float(totjobs)
+          meanjob = 0.0
+          if code_nh[name] > 0:
+             meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
+          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+       nhfrac = 100 * float(other_nh)/float(totnh)
+       jobfrac = 100 * float(other_jobs)/float(totjobs)
+       meanjob = 0.0
+       if other_nh > 0:
+          meanjob = float(other_sum_jobs_size)/float(other_nh)
+          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac, other_num_users,uscale * meanjob, uscale * int(other_medh)))
+       nhfrac = 100 * float(totnh)/float(totnh)
+       jobfrac = 100 * float(totjobs)/float(totjobs)
+       meanjob = 0.0
+       if totnh > 0:
+          meanjob = float(tot_sum_jobs_size)/float(totnh)
+          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Total", uscale * totnh, nhfrac, totjobs, jobfrac, totusers,uscale * meanjob, uscale * int(tot_medh)))
+       csvfile.close()
+
 
     # Aggregate results on code metadata
     lang_nh = {}
