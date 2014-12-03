@@ -4,9 +4,12 @@
 #
 # Depends on ARCHER_MON_BASEDIR being set
 #
-if [ $1 == "1d,2d" ]; then
-   python $ARCHER_MON_BASEDIR/reporting/usage/plot_usage.py $1 usage
-else
+# As we now plot multiple job sizes we need to use different versions until the
+# data catches up
+re='1m|1q|1y'
+if [[ $1 =~ $re ]]; then
    python $ARCHER_MON_BASEDIR/reporting/usage/plot_usage_single.py $1 usage
+else
+   python $ARCHER_MON_BASEDIR/reporting/usage/plot_usage.py $1 usage
 fi
 python $ARCHER_MON_BASEDIR/reporting/usage/plot_queues.py $1 queues
