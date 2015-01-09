@@ -472,6 +472,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     colmap = None
     cNorm = None
     scalarMap = None
+    pie_colmap = None
+    pie_cNorm = None
+    pie_scalarMap = None
     if png: 
        import matplotlib
        matplotlib.rcParams['font.size'] = 9
@@ -487,6 +490,11 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        colmap = cm = plt.get_cmap('spectral') 
        cNorm  = colors.Normalize(vmin=0, vmax=ntop+1)
        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=colmap)
+
+       # Set up a colormap for pie charts
+       pie_colmap = cm = plt.get_cmap('Pastel2') 
+       pie_cNorm  = colors.Normalize(vmin=0, vmax=ntop+3)
+       pie_scalarMap = cmx.ScalarMappable(norm=pie_cNorm, cmap=pie_colmap)
 
        # Plot a time profile of the overall mean job size
        fig = plt.figure(1)
@@ -757,6 +765,35 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        sys.stdout.write(lines + "\n")
 
     # Loop over codes printing usage
+    if png:
+       fig = plt.figure(1)
+       fig.clf()
+       ax = plt.subplot(1, 1, 1)
+       pie_labels = []
+       pie_vals = []
+       pie_cols = []
+       pie_explode = []
+       sum_nh = 0
+       idx = 0
+       for name in top_codes:
+          pie_cols.append(pie_scalarMap.to_rgba(idx))
+          pie_labels.append(name)
+          pie_vals.append(float(code_nh[name]))
+          pie_explode.append(0.05)
+          sum_nh += code_nh[name]
+          idx += 1
+       pie_cols.append(pie_scalarMap.to_rgba(idx))
+       pie_labels.append("Other Known Codes")
+       pie_vals.append(totnh - sum_nh - other_nh)
+       pie_explode.append(0.05)
+       idx += 1
+       pie_cols.append(pie_scalarMap.to_rgba(idx))
+       pie_labels.append("Unidentified Codes")
+       pie_vals.append(other_nh)
+       pie_explode.append(0.05)
+       ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols, autopct='%1.1f%%')
+       ax.axis('equal')
+       fig.savefig("{0}/usage_pie.png".format(outDir))
     if text:
        if units == 'nodes':
           sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
@@ -931,6 +968,25 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        else:
           meta_nh[meta] = code_nh[name]
           meta_jobs[meta] = code_jobs[name]
+    if png:
+       fig = plt.figure(1)
+       fig.clf()
+       ax = plt.subplot(1, 1, 1)
+       pie_labels = []
+       pie_vals = []
+       pie_cols = []
+       pie_explode = []
+       sum_nh = 0
+       idx = 0
+       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+          pie_cols.append(pie_scalarMap.to_rgba(idx))
+          pie_labels.append(meta)
+          pie_vals.append(float(meta_nh[meta]))
+          pie_explode.append(0.05)
+          idx += 1
+       ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols, autopct='%1.1f%%')
+       ax.axis('equal')
+       fig.savefig("{0}/resarea_pie.png".format(outDir))
     # Loop over codes printing usage
     if text:
        if units == 'nodes':
