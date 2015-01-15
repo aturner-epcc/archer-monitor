@@ -32,7 +32,7 @@ nsize=${#sizes[@]}
 
 # Test that we have some data from job list
 if [ "${#apps[@]}" == 0 ]; then
-   printf "%s %d\n" $TIME 0 0 0 0 0 0 >> $outfile
+   printf "%s %d %d %d %d %d %d\n" $TIME 0 0 0 0 0 0 >> $outfile
    exit 0
 fi
 
