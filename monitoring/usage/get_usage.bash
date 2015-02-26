@@ -1,11 +1,9 @@
 #!/bin/bash
 #############################################################
-# running_applications.bash
+# get_usage.bash
 #############################################################
 #
-# Get list of currently placed applications. This
-# script is desgined to be run periodically to get
-# a kist of placed applications (e.g. every hour).
+# Get the current usage of the system from apstat
 #
 # A. R. Turner, EPCC 2014
 #
