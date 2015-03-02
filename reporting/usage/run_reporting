@@ -6,7 +6,7 @@
 #
 # As we now plot multiple job sizes we need to use different versions until the
 # data catches up
-re='1q|1y'
+re='1y'
 if [[ $1 =~ $re ]]; then
    python $ARCHER_MON_BASEDIR/reporting/usage/plot_usage_single.py $1 usage
 else
