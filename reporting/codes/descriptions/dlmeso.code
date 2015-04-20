@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: EPOCH
-regexp: epoch
+name: DL_MESO
+regexp: lbe|dpd
 
 [metadata]
-primary language: Fortran
-version:          95
+primary language: C++
+version:          
 
-academic license: Open Source GPL
-commercial license: None
+academic license: Open Source
+commercial license: Open Source
 
-code type: PIC
+code type: Lattice Boltzman
 
-research area: Plasma Science
+research area: Mesoscale Engineering
 
