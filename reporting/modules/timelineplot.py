@@ -46,6 +46,7 @@ def compute_timeline(interval, infile):
     # Loop over lines in the file
     icount = 0
     sum = 0
+    max = -10000000
     dates = []
     timeline = []
     for line in datafile:
@@ -57,6 +58,9 @@ def compute_timeline(interval, infile):
 
         icount += 1
         sum += int(tokens[2])
+        if int(tokens[2]) > max:
+           max = int(tokens[2])
+ 
  
         # If at the end of the interval then compute the mean
         if icount == interval:
@@ -72,6 +76,7 @@ def compute_timeline(interval, infile):
             sum = 0
 
     datafile.close()
+    print "{0}: Max y = {1}".format(infile, max)
 
     return dates, timeline
 
@@ -104,6 +109,7 @@ def compute_multiple_timeline(ncol, interval, infile, scale=1.0):
     # Loop over lines in the file
     icount = 0
     sum = [0] * ncol
+    max = [-1000000] * ncol
     dates = []
     # Define an empty list of lists
     timeline = [[] for x in xrange(0,ncol)]
@@ -112,6 +118,8 @@ def compute_multiple_timeline(ncol, interval, infile, scale=1.0):
         
         for i in range(ncol):
             sum[i] += int(data[j][i+2])
+            if int(data[j][i+2]) > max[i]:
+               max[i] = int(data[j][i+2])
  
         # If at the end of the interval then compute the mean
         if icount == interval:
@@ -128,6 +136,7 @@ def compute_multiple_timeline(ncol, interval, infile, scale=1.0):
 
             icount = 0
 
+    print infile + ": Max y = " + str(max)
     return dates, timeline
 
 def plot_timeline(timelabels, timeline, datemin, datemax, label, axislabel,

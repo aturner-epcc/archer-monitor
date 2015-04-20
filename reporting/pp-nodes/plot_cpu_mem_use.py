@@ -1,173 +1,130 @@
 #!/usr/bin/env python
 #
-# Plot the cpu and memory usage
+# Plot the historical usage level of the MOM nodes. Depends on the
+# ARCHER_MON_LOGDIR, ARCHER_MON_OUTDIR environment variables being set and on 
+# PYTHONPATH including $ARCHER_MON_BASEDIR/reporting/modules
 #
-import numpy as np
-import datetime
-import time
-from datetime import datetime
-from datetime import timedelta
+# Usage example:
+#  plot_mom_load.py 1d,2d mom1 
+#
+# First argument is list of periods to plot, second argument is
+# the MOM node to plot usage for
+#
+
+# Custom Python module in $ARCHER_MON_BASEDIR/reporting/modules
+from timelineplot import compute_multiple_timeline, get_filelist, plot_timeline, plot_multiple_timeline
+
+from datetime import datetime, timedelta
 import sys
 import os
 
-######################################################
-# Settings
-######################################################
-base_dir = os.environ['ARCHER_MON_BASEDIR']
+###############################################################
+# Configuration section
+###############################################################
+ncol = 5 # This is the number of columns of y-data in the log files
 
-# Get today's dateA
+indir = os.environ['ARCHER_MON_LOGDIR'] + '/nodes'
+outdir = os.environ['ARCHER_MON_OUTDIR'] + '/nodes'
+
+# Valid reporting periods
+periods = ['1d', '2d', '1w', '1m', '1q', '1y']
+
+# Intervals assume a 15 minute sampling interval
+intervals = {
+    '1d': 1,
+    '2d': 2,
+    '1w': 8,
+    '1m': 12,
+    '1q': 48,
+    '1y': 96
+            }
+days = {
+    '1d': 1,
+    '2d': 2,
+    '1w': 7,
+    '1m': 30,
+    '1q': 90,
+    '1y': 365
+            }
+###############################################################
+# End Configuration section
+###############################################################
+
+speriod = sys.argv[1]
+filestem = sys.argv[2]
+tokens = speriod.split(',')
+repperiod = []
+# Make sure we have specified valid periods
+for token in tokens:
+    if token in periods:
+        repperiod.append(token)
+    else:
+        print "Period {0} not found, skipping".format(token)
+
+if len(repperiod) < 1:
+    print "No valid periods specified, exiting"
+    sys.exit(1)
+
+# List of log files
+files = get_filelist(indir, filestem + '.load')
+
 now = datetime.today()
-one_day = now - timedelta(days=1)
-two_days = now - timedelta(days=2)
-one_week = now - timedelta(days=7)
-one_month = now - timedelta(days=30)
-one_quarter = now - timedelta(days=90)
-one_year = now - timedelta(days=365)
+for curperiod in repperiod:
+    # We have to add one to the days to make sure we get the data
+    # from the previos day that we need
+    startfile = now - timedelta(days=days[curperiod]+1)
+    startdate = now - timedelta(days=days[curperiod])
 
-logfile = sys.argv[1]
-filestem = logfile.split('.')[0]
+    alldates = []
+    allusage = [[] for x in xrange(0,ncol)]
+    for file in files:
+        filename = os.path.basename(file)
+        filedate = filename.split('.')[0]
+        fdate = datetime.strptime(filedate, "%Y-%m-%d")
+        if fdate >= startfile:
+            # Read and average data from this file
+            (dates, usage) = compute_multiple_timeline(ncol, intervals[curperiod], file)
+            alldates.extend(dates)
+            for i in range(ncol):
+                allusage[i].extend(usage[i])
 
-infile = open(base_dir + "/logs/" + logfile, "r")
-lines = infile.read().splitlines()
-infile.close()
+    imgfile = "{0}/{1}_{2}.png".format(outdir, filestem, curperiod)
+    titles = ['Total', 'Use', 'Free', 'Cache']
+    #plot_multiple_timeline(alldates, allusage[1:][:], startdate, now, 'Mem / GB', titles, imgfile, totals=False)
 
-date = []
+    import matplotlib
+    matplotlib.rcParams['font.size'] = 8
+    matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+    from matplotlib import dates
 
-cpu_us = []
+    # n = len(timeline)
+    fig = plt.figure(1)
 
-mem_tot = []
-mem_usd = []
-mem_fre = []
+    # ax1.fill_between(date, 0, cpu_us, facecolor='red', alpha='0.5', label='Load')
+    ax1 = plt.subplot(2, 1, 1)
+    ax1.set_ylabel("CPU / Avg. Load")
+    ax1.tick_params(axis='x', labelbottom='off')
 
-for line in lines:
-   # Skip comments
-   if line.startswith('#'):
-      continue
-   tokens = line.split()
-   timestring = tokens[0] + " " + tokens[1]
-   timestring = timestring.split('+')[0]
-   timetuple = datetime.strptime(timestring, "%Y-%m-%d %H:%M:%S")
-   date.append(timetuple)
+    ax2 = plt.subplot(2, 1, 2)
+    ax2.set_ylim(auto=True)
+    ax2.set_ylabel("Mem / GB")
 
-   cpu_us.append(float(tokens[2]))
+    ax1.plot(alldates, allusage[0][:], 'r-', label='CPU Load')
+    ax1.set_xlim((startdate, now))
+    ax1.legend()
 
-   mem = tokens[3].strip('M')
-   mem_tot.append(int(mem))
+    ax2.plot(alldates, allusage[1][:], "b-", label='Total')
+    ax2.plot(alldates, allusage[2][:], "r-", label='Used')
+    ax2.plot(alldates, allusage[3][:], "g-", label='Free')
+    ax2.plot(alldates, allusage[4][:], "g--", label='Cache')
+    ax2.set_xlim((startdate, now))
+    ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
+    ax2.legend()
 
-   mem = tokens[4].strip('M')
-   mem_usd.append(int(mem))
+    fig.autofmt_xdate()
+    fig.savefig(imgfile)
+    plt.close(fig)
 
-   mem = tokens[5].strip('M')
-   mem_fre.append(int(mem))
+sys.exit(0)
 
-# Compute the averages
-sys.stdout.write("     Average CPU Usage = {0:10.2f} CPU\n".format(np.average(cpu_us)))
-sys.stdout.write("  Average Memory Usage = {0:10.2f} GB\n".format(np.average(mem_usd)))
-sys.stdout.write("        Peak CPU Usage = {0:10.2f} CPU\n".format(np.amax(cpu_us)))
-sys.stdout.write("     Peak Memory Usage = {0:10.2f} GB\n".format(np.amax(mem_usd)))
-
-# Plot the data
-import matplotlib
-matplotlib.rcParams['font.size'] = 8
-matplotlib.use("Agg")
-from matplotlib import pyplot as plt
-from matplotlib import dates
-
-fig = plt.figure(1)
-
-fig.subplots_adjust(right=0.8, left=0.15)
-
-# ax1.fill_between(date, 0, cpu_us, facecolor='red', alpha='0.5', label='Load')
-ax1 = plt.subplot(2, 1, 1)
-ax1.set_ylim((0,80))
-ax1.set_ylabel("CPU / Avg. Load")
-ax1.tick_params(axis='x', labelbottom='off')
-
-ax2 = plt.subplot(2, 1, 2)
-#ax2.fill_between(date, 0, mem_tot, facecolor='blue', alpha='1.0', label='Total')
-#ax2.fill_between(date, 0, mem_usd, facecolor='red', alpha='1.0', label='Used')
-#ax2.fill_between(date, 0, mem_fre, facecolor='green', alpha='1.0', label='Free')
-ax2.set_ylim(bottom=0)
-ax2.set_ylabel("Mem / GB")
-
-
-# ax2 = ax1.twinx()
-
-# Plot 1 day
-ax1.plot(date, cpu_us, 'r-', label='Load')
-ax1.set_xlim((one_day,now))
-ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-ax2.plot(date, mem_tot, "b-", label='Total')
-ax2.plot(date, mem_usd, "r-", label='Used')
-ax2.plot(date, mem_fre, "g-", label='Free')
-ax2.set_xlim((one_day,now))
-ax2.xaxis.set_major_locator(dates.MinuteLocator(interval=120))
-ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
-ax2.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-fig.autofmt_xdate()
-fig.savefig(filestem + "_1d.png")
-# Plot 2 days
-ax1.set_xlim((two_days,now))
-ax2.set_xlim((two_days,now))
-ax2.xaxis.set_major_locator(dates.MinuteLocator(interval=240))
-ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
-fig.autofmt_xdate()
-fig.savefig(filestem + "_2d.png")
-# Plot 1 week
-ax1.set_xlim((one_week,now))
-ax2.set_xlim((one_week,now))
-ax2.xaxis.set_major_locator(dates.MinuteLocator(interval=720))
-ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d %H:%M"))
-fig.autofmt_xdate()
-fig.savefig(filestem + "_1w.png")
-# Plot 1 month
-ax1.set_xlim((one_month,now))
-ax2.set_xlim((one_month,now))
-ax2.xaxis.set_major_locator(dates.MinuteLocator(interval=2880))
-ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
-fig.autofmt_xdate()
-fig.savefig(filestem + "_1m.png")
-# Plot 1 quarter
-# Average over the specified blocksize using numpy
-# Reshape the array into blocks of the specified size then
-# numpy with return an array of averages
-blocksize = 96
-x = np.array(cpu_us)
-npoint = x.size
-ndiv = npoint / blocksize
-nmax = ndiv * blocksize
-use = np.reshape(x[:nmax], (blocksize,-1))
-avuse = np.average(use, axis=1)
-ax1.cla()
-ax1.plot(date[:-blocksize:ndiv], avuse, 'r-', label='Load')
-ax1.set_xlim((one_quarter,now))
-ax1.set_ylim((0,80))
-ax1.set_ylabel("CPU / Avg. Load")
-ax1.tick_params(axis='x', labelbottom='off')
-ax1.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-mt = np.reshape(mem_tot[:nmax], (blocksize,-1))
-amt = np.average(mt, axis=1)
-mu = np.reshape(mem_usd[:nmax], (blocksize,-1))
-amu = np.average(mu, axis=1)
-mf = np.reshape(mem_fre[:nmax], (blocksize,-1))
-amf = np.average(mf, axis=1)
-avuse = np.average(use, axis=1)
-ax2.cla()
-ax2.plot(date[:-blocksize:ndiv], amt, "b-", label='Total')
-ax2.plot(date[:-blocksize:ndiv], amu, "r-", label='Used')
-ax2.plot(date[:-blocksize:ndiv], amf, "g-", label='Free')
-ax2.set_ylim(bottom=0)
-ax2.set_ylabel("Mem / GB")
-ax2.set_xlim((one_quarter,now))
-ax2.xaxis.set_major_locator(dates.MinuteLocator(interval=8640))
-ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
-ax2.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-fig.autofmt_xdate()
-fig.savefig(filestem + "_1q.png")
-# Plot 1 year
-ax1.set_xlim((one_year,now))
-ax2.set_xlim((one_year,now))
-ax2.xaxis.set_major_locator(dates.MinuteLocator(interval=34560))
-ax2.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
-fig.autofmt_xdate()
-fig.savefig(filestem + "_1y.png")

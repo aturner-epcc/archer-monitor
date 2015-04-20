@@ -82,6 +82,7 @@ for curperiod in repperiod:
         filedate = filename.split('.')[0]
         fdate = datetime.strptime(filedate, "%Y-%m-%d")
         if fdate >= startfile:
+            print filename
             # Read and average data from this file
             (dates, usage) = compute_multiple_timeline(ncol, intervals[curperiod], file)
             alldates.extend(dates)

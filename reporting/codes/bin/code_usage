@@ -66,8 +66,9 @@ def main(argv):
     thresh = 0.005
     day_interval = 14
     ntop = 10
+    scaleuse = 1.0
     units = "nodes"
-    punit = "Nh"
+    punit = "Usage"
     uscale = 1
     html = False
     # Default logfile directory
@@ -138,19 +139,22 @@ def main(argv):
         error.handleError("Could not parse command line options\n")
 
     # Parse the command-line options
-    byuser = False
+    byuser = True
     csv = False
     png = True
     text = True
-    userlist = []
+    userlist = ["tarje"]
     group = None
     startfile = datetime.utcfromtimestamp(0)
     endfile = datetime.now()
     indir = DEFAULT_LOGFILE_DIR
     for opt, arg in opts:
+        if opt in ("--units"):
+            punit = arg
+        if opt in ("--scale"):
+            scaleuse = float(arg)
         if opt in ("-c", "--cores"):
             units = "cores"
-            punit = "CPUh"
             uscale = int(arg)
         elif opt in ("-q", "--quiet"):
             text = False
@@ -188,15 +192,17 @@ def main(argv):
         elif opt in ("-e", "--end"):
             endfile = datetime.strptime(arg, "%Y-%m-%d")
         elif opt in ("-g", "--group"):
-            group = arg
-            bashCommand = "ldapsearch -x cn={0}".format(arg)
-            ldap = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-            users = ldap.communicate()[0]
-            for line in users.splitlines():
-               if "memberUid" in line:
-                  line = line.rstrip()
-                  tokens = line.split()
-                  userlist.append('"' + tokens[1] + '"')
+            print "   Getting usage for groups = {0}".format(arg)
+            groups = arg.split(",")
+            for group in groups:
+               bashCommand = "ldapsearch -x cn={0}".format(group)
+               ldap = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+               users = ldap.communicate()[0]
+               for line in users.splitlines():
+                  if "memberUid" in line:
+                     line = line.rstrip()
+                     tokens = line.split()
+                     userlist.append('"' + tokens[1] + '"')
             byuser = True
         elif opt in ("-h", "--help"):
             printHelp(rootDir)
@@ -426,12 +432,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
          if daycounter == day_interval:
             datearray.append(fdate)
             if nfilenodeh > 0:
-               mjobsize = uscale * float(nfilenodehsq)/float(nfilenodeh)
+               mjobsize = float(nfilenodehsq)/float(nfilenodeh)
                meanjobsize.append(mjobsize)
-               tot_thours.append(uscale * nfilenodeh)
+               tot_thours.append(nfilenodeh)
                tot_tjobs.append(nfilejobs)
                if csv:
-                  totcsv.write("{0},{1:.4f},{2:d},{3:d}\n".format(filedate, mjobsize, uscale*nfilenodeh, nfilejobs))
+                  totcsv.write("{0},{1:.4f},{2:d},{3:d}\n".format(filedate, mjobsize, nfilenodeh, nfilejobs))
             else:
                meanjobsize.append(0)
                tot_thours.append(0)
@@ -441,16 +447,16 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             for code in codes:
                name = code.name
                if code_filenh[name] > 0:
-                  code_meanjob[name].append(uscale * float(code_filenhsq[name])/float(code_filenh[name]))
-                  code_thours[name].append(uscale * code_filenh[name])
+                  code_meanjob[name].append(float(code_filenhsq[name])/float(code_filenh[name]))
+                  code_thours[name].append(code_filenh[name])
                   code_tjobs[name].append(code_filejobs[name])
                else:
                   code_meanjob[name].append(0)
                   code_thours[name].append(0)
                   code_tjobs[name].append(0)
             if other_filenh > 0:
-               other_meanjob.append(uscale * float(other_filenhsq)/float(other_filenh))
-               other_thours.append(uscale * other_filenh)
+               other_meanjob.append(float(other_filenhsq)/float(other_filenh))
+               other_thours.append(other_filenh)
                other_tjobs.append(other_filejobs)
             else:
                other_meanjob.append(0)
@@ -669,11 +675,11 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        for name in sorted(code_nh, key=code_nh.get, reverse=True):
           sys.stdout.write("{0:>20s}".format(name))
           for size in sizes:
-             sys.stdout.write("{0:20d}".format(uscale * bcode_nh_bysize[(name, size)]))
+             sys.stdout.write("{0:20d}".format(bcode_nh_bysize[(name, size)]))
           sys.stdout.write("\n")
        sys.stdout.write("{0:>20s}".format("Unknown"))
        for size in sizes:
-          sys.stdout.write("{0:>20d}".format(uscale * bother_nh_bysize[size]))
+          sys.stdout.write("{0:>20d}".format(bother_nh_bysize[size]))
        sys.stdout.write("\n")
        lines = "{0:>20s}".format("----")
        for size in sizes:
@@ -681,7 +687,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        sys.stdout.write(lines + "\n")
        sys.stdout.write("{0:>20s}".format("Total"))
        for size in sizes:
-          sys.stdout.write("{0:>20d}".format(uscale * btot_nh_bysize[size]))
+          sys.stdout.write("{0:>20d}".format(btot_nh_bysize[size]))
        sys.stdout.write("\n")
        lines = "{0:>20s}".format("====")
        for size in sizes:
@@ -700,7 +706,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        nrow = len(btot_nh_bysize)
        data = []
        for size in sizes:
-          data.append(uscale * btot_nh_bysize[size])
+          data.append(btot_nh_bysize[size])
        pos = np.arange(nrow) - (width/2.0)
        ax.bar(pos, data, width, color='0.75', alpha=0.75)
        ax.set_xticks(np.arange(nrow))
@@ -717,7 +723,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           ax.cla()
           data = []
           for size in sizes:
-             data.append(uscale * bcode_nh_bysize[(name,size)])
+             data.append(bcode_nh_bysize[(name,size)])
           colorVal = scalarMap.to_rgba(idx)
           ax.bar(pos, data, width, color=colorVal, edgecolor=colorVal, alpha=0.75)
           idx += 1
@@ -808,20 +814,20 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           meanjob = 0.0
           if code_nh[name] > 0:
              meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
-          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
        nhfrac = 100 * float(other_nh)/float(totnh)
        jobfrac = 100 * float(other_jobs)/float(totjobs)
        meanjob = 0.0
        if other_nh > 0:
           meanjob = float(other_sum_jobs_size)/float(other_nh)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
        sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("----", "----------", "------", "----", "------", "-----", "----", "------"))
        nhfrac = 100 * float(totnh)/float(totnh)
        jobfrac = 100 * float(totjobs)/float(totjobs)
        meanjob = 0.0
        if totnh > 0:
           meanjob = float(tot_sum_jobs_size)/float(totnh)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Total", totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
        sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("====", "==========", "======", "====", "======", "=====", "====", "======"))
 
     # Write HTML table if required
@@ -861,7 +867,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
       <td>{6:.2f}</td>
       <td>{7:d}</td>
    </tr>      
-""".format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+""".format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
        htmlfile.write("</table>\n")
        htmlfile.close()
 
@@ -874,19 +880,19 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           meanjob = 0.0
           if code_nh[name] > 0:
              meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
-          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
        nhfrac = 100 * float(other_nh)/float(totnh)
        jobfrac = 100 * float(other_jobs)/float(totjobs)
        meanjob = 0.0
        if other_nh > 0:
           meanjob = float(other_sum_jobs_size)/float(other_nh)
-          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac, other_num_users,uscale * meanjob, uscale * int(other_medh)))
+          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Unknown", other_nh, nhfrac, other_jobs, jobfrac, other_num_users,uscale * meanjob, uscale * int(other_medh)))
        nhfrac = 100 * float(totnh)/float(totnh)
        jobfrac = 100 * float(totjobs)/float(totjobs)
        meanjob = 0.0
        if totnh > 0:
           meanjob = float(tot_sum_jobs_size)/float(totnh)
-          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Total", uscale * totnh, nhfrac, totjobs, jobfrac, totusers,uscale * meanjob, uscale * int(tot_medh)))
+          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Total", totnh, nhfrac, totjobs, jobfrac, totusers,uscale * meanjob, uscale * int(tot_medh)))
        csvfile.close()
 
 
@@ -913,14 +919,14 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        for lang in sorted(lang_nh, key=lang_nh.get, reverse=True):
           nhfrac = 100 * float(lang_nh[lang])/float(totnh)
           jobfrac = 100 * float(lang_jobs[lang])/float(totjobs)
-          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(lang, uscale * lang_nh[lang], nhfrac, lang_jobs[lang], jobfrac))
+          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(lang, lang_nh[lang], nhfrac, lang_jobs[lang], jobfrac))
        nhfrac = 100 * float(other_nh)/float(totnh)
        jobfrac = 100 * float(other_jobs)/float(totjobs)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
        sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
        nhfrac = 100 * float(totnh)/float(totnh)
        jobfrac = 100 * float(totjobs)/float(totjobs)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
        sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Aggregate results on type metadata
@@ -946,14 +952,14 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
           nhfrac = 100 * float(meta_nh[meta])/float(totnh)
           jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
        nhfrac = 100 * float(other_nh)/float(totnh)
        jobfrac = 100 * float(other_jobs)/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
        nhfrac = 100 * float(totnh)/float(totnh)
        jobfrac = 100 * float(totjobs)/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Aggregate results on type metadata
@@ -998,14 +1004,14 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
           nhfrac = 100 * float(meta_nh[meta])/float(totnh)
           jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
        nhfrac = 100 * float(other_nh)/float(totnh)
        jobfrac = 100 * float(other_jobs)/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
        nhfrac = 100 * float(totnh)/float(totnh)
        jobfrac = 100 * float(totjobs)/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Print out any other executables with usage over defined threshold
@@ -1022,10 +1028,10 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           if other_codes[name] > percent:
              nhfrac = 100 * float(other_codes[name])/float(totnh)
              other_tot += int(other_codes[name])
-             sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format(name, uscale * other_codes[name], nhfrac))
+             sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format(name, other_codes[name], nhfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("----", "----------", "------"))
        nhfrac = 100 * float(other_tot)/float(totnh)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format("Total", uscale * other_tot, nhfrac))
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format("Total", other_tot, nhfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
 
 
@@ -1058,7 +1064,7 @@ OPTIONS
 -s,--start  yyyy-mm-dd      Start date for analysis (default is start of data in logfiles) 
 -e,--end    yyyy-mm-dd      End date for analysis (default is end of data in logfiles) 
 
--g,--group  <group>         Restrict analysis to specified group (e.g. e05)
+-g,--group  <group1>,<group2> Restrict analysis to specified groups (e.g. n01,n02)
 
 -b,--bins   <filename>      Specify the histogram bins for binning the data as 
                             a function of job size. The ASCII file specified should
