@@ -139,7 +139,7 @@ def main(argv):
         error.handleError("Could not parse command line options\n")
 
     # Parse the command-line options
-    byuser = True
+    byuser = False
     csv = False
     png = True
     text = True
@@ -331,7 +331,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                user = tokens[2]
                nodes = tokens[4]
                exename = tokens[7]
-
+       
                # We may need to test if we are counting this job
                addjob = True
                if byuser:
@@ -428,6 +428,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
          # Close the logfile
          logFile.close()
 
+         # Accumulate time series data
          daycounter += 1
          if daycounter == day_interval:
             datearray.append(fdate)
@@ -443,7 +444,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                tot_thours.append(0)
                tot_tjobs.append(0)
                if csv:
-                  totcsv.write("{0},{1:.4f},{2d},{3:d}\n".format(filedate, 0, 0, 0))
+                  totcsv.write("{0},{1:.4f},{2:d},{3:d}\n".format(filedate, 0, 0, 0))
             for code in codes:
                name = code.name
                if code_filenh[name] > 0:
@@ -509,8 +510,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        idx = 0
        recs = []
        labels = []
-       cursum = []
-       newsum = []
+       cursum = [0.0] * len(meanjobsize)
+       newsum = [0.0] * len(meanjobsize)
        for name in top_codes:
           if code_nh[name] > 0:
              colorVal = scalarMap.to_rgba(idx)
@@ -518,7 +519,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
              labels.append(name)
              if idx == 0:
                 ax.fill_between(datearray, 0, code_meanjob[name], facecolor=colorVal, color=colorVal)
-                cursum = list(code_meanjob[name])
+                for i, bi in enumerate(code_meanjob[name]): cursum[i] = cursum[i] + bi
                 newsum = list(cursum)
              else:
                 for i, bi in enumerate(code_meanjob[name]): newsum[i] = cursum[i] + bi
@@ -962,57 +963,59 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
+    
     # Aggregate results on type metadata
-    meta_nh = {}
-    meta_jobs = {}
-    for code in codes:
-       name = code.name
-       meta = code.area
-       if meta in meta_nh:
-          meta_nh[meta] += code_nh[name]
-          meta_jobs[meta] += code_jobs[name]
-       else:
-          meta_nh[meta] = code_nh[name]
-          meta_jobs[meta] = code_jobs[name]
-    if png:
-       fig = plt.figure(1)
-       fig.clf()
-       ax = plt.subplot(1, 1, 1)
-       pie_labels = []
-       pie_vals = []
-       pie_cols = []
-       pie_explode = []
-       sum_nh = 0
-       idx = 0
-       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
-          pie_cols.append(pie_scalarMap.to_rgba(idx))
-          pie_labels.append(meta)
-          pie_vals.append(float(meta_nh[meta]))
-          pie_explode.append(0.05)
-          idx += 1
-       ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols, autopct='%1.1f%%')
-       ax.axis('equal')
-       fig.savefig("{0}/resarea_pie.png".format(outDir))
-    # Loop over codes printing usage
-    if text:
-       if units == 'nodes':
-          sys.stdout.write("\n\nTotal research area usage (ordered by node hours)\n")
-       elif units == 'cores':
-          sys.stdout.write("\n\nTotal research area usage (ordered by CPUh)\n")
-       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
-       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
-          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
-          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
-       nhfrac = 100 * float(other_nh)/float(totnh)
-       jobfrac = 100 * float(other_jobs)/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
-       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
-       nhfrac = 100 * float(totnh)/float(totnh)
-       jobfrac = 100 * float(totjobs)/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
-       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    usageTable("area", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units)
+#    meta_nh = {}
+#    meta_jobs = {}
+#    for code in codes:
+#       name = code.name
+#       meta = code.area
+#       if meta in meta_nh:
+#          meta_nh[meta] += code_nh[name]
+#          meta_jobs[meta] += code_jobs[name]
+#       else:
+#          meta_nh[meta] = code_nh[name]
+#          meta_jobs[meta] = code_jobs[name]
+#    if png:
+#       fig = plt.figure(1)
+#       fig.clf()
+#       ax = plt.subplot(1, 1, 1)
+#       pie_labels = []
+#       pie_vals = []
+#       pie_cols = []
+#       pie_explode = []
+#       sum_nh = 0
+#       idx = 0
+#       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+#          pie_cols.append(pie_scalarMap.to_rgba(idx))
+#          pie_labels.append(meta)
+#          pie_vals.append(float(meta_nh[meta]))
+#          pie_explode.append(0.05)
+#          idx += 1
+#       ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols, autopct='%1.1f%%')
+#       ax.axis('equal')
+#       fig.savefig("{0}/resarea_pie.png".format(outDir))
+#    # Loop over codes printing usage
+#    if text:
+#       if units == 'nodes':
+#          sys.stdout.write("\n\nTotal research area usage (ordered by node hours)\n")
+#       elif units == 'cores':
+#          sys.stdout.write("\n\nTotal research area usage (ordered by CPUh)\n")
+#       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
+#       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+#       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+#          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
+#          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
+#          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+#       nhfrac = 100 * float(other_nh)/float(totnh)
+#       jobfrac = 100 * float(other_jobs)/float(totjobs)
+#       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+#       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+#       nhfrac = 100 * float(totnh)/float(totnh)
+#       jobfrac = 100 * float(totjobs)/float(totjobs)
+#       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+#       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
     # Print out any other executables with usage over defined threshold
     percent = thresh * float(totnh)
@@ -1037,6 +1040,92 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
     # Finish nicely
     exit(0)
+
+def usageTable(metadata, outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, 
+               units, text=True, csv=False, png=True):
+    """Print basic usage breakdown table grouped by specified code attribute/metadata
+      
+       Arguments:
+          * metadata - Attribute/metadata to group by
+          * outDir - Output directory for any written files (plots/text)
+          * codes - Dictionary of code objects
+          * code_nh - Dictionary of code usage by code (key is code name)
+          * code_jobs - Dictionary of code jobs by code (key is code name)
+          * other_nh - Usage by undentified codes
+          * other_jobs - Number of jobs by unidentified codes
+          * totnh - Total usage
+          * totjobs - Total jobs
+          * units - Units that usage is specified in
+          * text (optional) - Boolean specifying whether to print table to stdout (default=True)
+          * csv (optional) - Boolean specifying whether to print CSV file with table (default=False)
+          * png (optional) - Boolean specifying whether to print PNG image with pie chart (default=True)
+    """
+    meta_nh = {}
+    meta_jobs = {}
+    for code in codes:
+       name = getattr(code, "name")
+       meta = getattr(code, metadata)
+       if meta in meta_nh:
+          meta_nh[meta] += code_nh[name]
+          meta_jobs[meta] += code_jobs[name]
+       else:
+          meta_nh[meta] = code_nh[name]
+          meta_jobs[meta] = code_jobs[name]
+    if png:
+       import matplotlib
+       matplotlib.rcParams['font.size'] = 9
+       matplotlib.use("Agg")
+       from matplotlib import pyplot as plt
+       import numpy as np
+       from matplotlib import dates
+       import matplotlib.colors as colors
+       import matplotlib.cm as cmx
+       import matplotlib.patches as mpatches
+       # Set up a colormap for pie charts
+       pie_colmap = cm = plt.get_cmap('Pastel2')
+       pie_cNorm  = colors.Normalize(vmin=0, vmax=len(meta_nh))
+       pie_scalarMap = cmx.ScalarMappable(norm=pie_cNorm, cmap=pie_colmap)
+       fig = plt.figure(1)
+       fig.clf()
+       ax = plt.subplot(1, 1, 1)
+       pie_labels = []
+       pie_vals = []
+       pie_cols = []
+       pie_explode = []
+       sum_nh = 0
+       idx = 0
+       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+          pie_cols.append(pie_scalarMap.to_rgba(idx))
+          pie_labels.append(meta)
+          pie_vals.append(float(meta_nh[meta]))
+          pie_explode.append(0.05)
+          idx += 1
+       ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols, autopct='%1.1f%%')
+       ax.axis('equal')
+       fig.savefig("{0}/{1}_pie.png".format(outDir, metadata))
+    # Loop over codes printing usage
+    if text:
+       punit = ""
+       if units == 'nodes':
+          sys.stdout.write("\n\nTotal {0} usage (ordered by node hours)\n".format(metadata))
+          punit = "Nh"
+       elif units == 'cores':
+          sys.stdout.write("\n\nTotal {0} usage (ordered by CPUh)\n".format(metadata))
+          punit = "CPUh"
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
+          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
+          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+       nhfrac = 100 * float(other_nh)/float(totnh)
+       jobfrac = 100 * float(other_jobs)/float(totjobs)
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
+       nhfrac = 100 * float(totnh)/float(totnh)
+       jobfrac = 100 * float(totjobs)/float(totjobs)
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
+       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
 
 def printHelp(rootDir):
     """Print help for the tool.
