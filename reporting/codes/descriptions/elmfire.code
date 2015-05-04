@@ -19,8 +19,8 @@
 #
 
 [code info]
-name: WRF
-regexp: wrf
+name: ELMFIRE
+regexp: elmfire
 
 [metadata]
 primary language: Fortran
@@ -29,7 +29,7 @@ version:          95
 academic license: Free
 commercial license: Free
 
-code type: Structured Grid
+code type: Particle in Cell
 
-research area: Climate/Ocean Modelling
+research area: Plasma Science
 parallel-model: MPI

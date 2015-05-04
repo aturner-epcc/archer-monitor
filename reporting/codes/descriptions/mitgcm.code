@@ -29,7 +29,7 @@ version:          95
 academic license: Free
 commercial license: Free
 
-code type: Earth System Coupler
+code type: Structured Grid
 
-research area: Environment
-
+research area: Climate/Ocean Modelling
+parallel-model: MPI

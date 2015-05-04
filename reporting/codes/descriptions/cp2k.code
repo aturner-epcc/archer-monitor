@@ -56,4 +56,4 @@ code type: Periodic Electronic Structure
 
 # Major research area on ARCHER
 research area: Materials Science
-
+parallel-model: MPI+OpenMP

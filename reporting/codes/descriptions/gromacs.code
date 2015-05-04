@@ -29,7 +29,7 @@ version:
 academic license: Open Source: GPL
 commercial license: Open Source: GPL
 
-code type: Molecular Dynamics
+code type: N-body
 
-research area: Life Sciences
-
+research area: Biomolecular Simulation
+parallel-model: MPI+OpenMP

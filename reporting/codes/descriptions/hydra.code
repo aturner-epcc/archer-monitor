@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: WRF
-regexp: wrf
+name: Hydra
+regexp: jm51|hyd-
 
 [metadata]
 primary language: Fortran
-version:          95
+version:          
 
-academic license: Free
-commercial license: Free
+academic license: Open Source
+commercial license: Open Source
 
-code type: Structured Grid
+code type: Unstructured Grid
 
-research area: Climate/Ocean Modelling
+research area: Computational Fluid Dynamics
 parallel-model: MPI

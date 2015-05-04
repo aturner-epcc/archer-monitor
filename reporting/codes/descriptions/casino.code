@@ -32,4 +32,4 @@ commercial license: Fee
 code type: Monte Carlo
 
 research area: Materials Science
-
+parallel-model: MPI

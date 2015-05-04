@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: WRF
-regexp: wrf
+name: CHROMA
+regexp: chroma
 
 [metadata]
-primary language: Fortran
-version:          95
+primary language: C++
+version: 
 
 academic license: Free
 commercial license: Free
 
-code type: Structured Grid
+code type: Lattice QCD
 
-research area: Climate/Ocean Modelling
+research area: Particle Physics
 parallel-model: MPI

@@ -29,7 +29,7 @@ version:          95
 academic license: Open Source GPL
 commercial license: None
 
-code type: PIC
+code type: Particle in Cell
 
 research area: Plasma Science
-
+parallel-model: MPI

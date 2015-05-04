@@ -31,5 +31,5 @@ commercial license: Open Source
 
 code type: CFD
 
-research area: Engineering
-
+research area: Computational Fluid Dynamics
+parallel-model: MPI

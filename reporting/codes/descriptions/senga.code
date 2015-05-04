@@ -31,5 +31,5 @@ commercial license: Fee
 
 code type: CFD
 
-research area: Engineering
-
+research area: Combustion Modelling
+parallel-model: MPI

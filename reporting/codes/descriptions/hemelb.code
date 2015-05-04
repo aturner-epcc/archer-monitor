@@ -31,5 +31,5 @@ commercial license: Free
 
 code type: Lattice Boltzman
 
-research area: Life Sciences
-
+research area: Medical Physics
+parallel-model: MPI

@@ -31,5 +31,5 @@ commercial license: NA
 
 code type: Unstructured Grid
 
-research area: Environment
-
+research area: Climate/Ocean Modelling
+parallel-model: MPI

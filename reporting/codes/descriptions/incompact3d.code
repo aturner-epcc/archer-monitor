@@ -29,7 +29,7 @@ version:          95
 academic license: Open Source
 commercial license: Open Source
 
-code type: CFD
+code type: Structured Grid
 
-research area: Engineering
-
+research area: Computational Fluid Dynamics
+parallel-model: MPI

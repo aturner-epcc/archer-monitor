@@ -31,5 +31,5 @@ commercial license: Open Source
 
 code type: Lattice Boltzman
 
-research area: Mesoscale Engineering
-
+research area: Mesoscale Simulation
+parallel-model: MPI

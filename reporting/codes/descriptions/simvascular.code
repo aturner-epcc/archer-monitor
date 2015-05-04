@@ -31,5 +31,5 @@ commercial license: Fee
 
 code type: Unstructured Grid
 
-research area: Life Sciences
-
+research area: Medical Physics
+parallel-model: MPI
