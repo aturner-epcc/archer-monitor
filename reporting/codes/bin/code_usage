@@ -897,9 +897,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        csvfile.close()
 
     # Aggregate results on type metadata
-    metaUsageTable("pri_lang", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, text=text, csv=csv, png=png)
-    metaUsageTable("type", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, text=text, csv=csv, png=png)
-    metaUsageTable("area", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, text=text, csv=csv, png=png)
+    metaUsageTable("pri_lang", "Programming Language", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, text=text, csv=csv, png=png)
+    metaUsageTable("type", "Application Type", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, text=text, csv=csv, png=png)
+    metaUsageTable("area", "Research Area", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, text=text, csv=csv, png=png)
 
     # Print out any other executables with usage over defined threshold
     percent = thresh * float(totnh)
@@ -996,7 +996,6 @@ def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh,
           idx += 1
        ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols, autopct='%1.1f%%')
        ax.axis('equal')
-       ax.title("% Usage in {0} broken down by {1}".format(punit, label))
        fig.savefig("{0}/{1}_usage_pie.png".format(outDir, metadata))
     # Print usage to STDOUT
     if text:
