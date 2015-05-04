@@ -7,7 +7,8 @@
 #===============================================================
 #
 #===============================================================
-# v0.4 - Modified to work all z01 users
+# v0.5 - Generalised metadata analysis 
+# v0.4 - Modified to work for all z01 users
 # v0.3 - Statistics on code usage over time
 # v0.2 - Read from separate log files (one for each day)
 # v0.1 - Initial version
@@ -35,7 +36,7 @@
 # For hepl see function at bottom of source
 #
 __author__ = 'Andrew Turner, EPCC, The University of Edinburgh'
-__version__ = '0.4'
+__version__ = '0.5'
 
 # Import the required modules
 from code_def import CodeDef
@@ -149,10 +150,6 @@ def main(argv):
     endfile = datetime.now()
     indir = DEFAULT_LOGFILE_DIR
     for opt, arg in opts:
-        if opt in ("--units"):
-            punit = arg
-        if opt in ("--scale"):
-            scaleuse = float(arg)
         if opt in ("-c", "--cores"):
             units = "cores"
             uscale = int(arg)
