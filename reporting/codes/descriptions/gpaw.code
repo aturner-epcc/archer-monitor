@@ -19,12 +19,12 @@
 #
 
 [code info]
-name: Quantum Espresso
-regexp: cp.x|ph.x|pw.x|neb.x
+name: GPAW
+regexp: gpaw
 
 [metadata]
-primary language: Fortran
-version:          95
+primary language: C
+version:
 
 academic license: Open Source
 commercial license: Open Source
