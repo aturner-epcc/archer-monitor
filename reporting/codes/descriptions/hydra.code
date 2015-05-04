@@ -19,15 +19,15 @@
 #
 
 [code info]
-name: Hydra
-regexp: jm51|hyd-
+name: HYDRA
+regexp: jm51|hyd-|hydra
 
 [metadata]
 primary language: Fortran
 version:          
 
-academic license: Open Source
-commercial license: Open Source
+academic license:
+commercial license:
 
 code type: Unstructured Grid
 
