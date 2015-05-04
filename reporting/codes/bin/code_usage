@@ -896,126 +896,10 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Total", totnh, nhfrac, totjobs, jobfrac, totusers,uscale * meanjob, uscale * int(tot_medh)))
        csvfile.close()
 
-
-    # Aggregate results on code metadata
-    lang_nh = {}
-    lang_jobs = {}
-    for code in codes:
-       name = code.name
-       lang = code.pri_lang
-       if lang in lang_nh:
-          lang_nh[lang] += code_nh[name]
-          lang_jobs[lang] += code_jobs[name]
-       else:
-          lang_nh[lang] = code_nh[name]
-          lang_jobs[lang] = code_jobs[name]
-    # Loop over codes printing usage
-    if text:
-       if units == 'nodes':
-          sys.stdout.write("\n\nTotal language usage (ordered by node hours)\n")
-       elif units == 'cores':
-          sys.stdout.write("\n\nTotal language usage (ordered by CPUh)\n")
-       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
-       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-       for lang in sorted(lang_nh, key=lang_nh.get, reverse=True):
-          nhfrac = 100 * float(lang_nh[lang])/float(totnh)
-          jobfrac = 100 * float(lang_jobs[lang])/float(totjobs)
-          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(lang, lang_nh[lang], nhfrac, lang_jobs[lang], jobfrac))
-       nhfrac = 100 * float(other_nh)/float(totnh)
-       jobfrac = 100 * float(other_jobs)/float(totjobs)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
-       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
-       nhfrac = 100 * float(totnh)/float(totnh)
-       jobfrac = 100 * float(totjobs)/float(totjobs)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
-       sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-
     # Aggregate results on type metadata
-    meta_nh = {}
-    meta_jobs = {}
-    for code in codes:
-       name = code.name
-       meta = code.type
-       if meta in meta_nh:
-          meta_nh[meta] += code_nh[name]
-          meta_jobs[meta] += code_jobs[name]
-       else:
-          meta_nh[meta] = code_nh[name]
-          meta_jobs[meta] = code_jobs[name]
-    # Loop over codes printing usage
-    if text:
-       if units == 'nodes':
-          sys.stdout.write("\n\nTotal type usage (ordered by node hours)\n")
-       elif units == 'cores':
-          sys.stdout.write("\n\nTotal type usage (ordered by CPUh)\n")
-       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
-       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
-          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
-          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
-       nhfrac = 100 * float(other_nh)/float(totnh)
-       jobfrac = 100 * float(other_jobs)/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
-       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
-       nhfrac = 100 * float(totnh)/float(totnh)
-       jobfrac = 100 * float(totjobs)/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
-       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-
-    
-    # Aggregate results on type metadata
-    usageTable("area", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units)
-#    meta_nh = {}
-#    meta_jobs = {}
-#    for code in codes:
-#       name = code.name
-#       meta = code.area
-#       if meta in meta_nh:
-#          meta_nh[meta] += code_nh[name]
-#          meta_jobs[meta] += code_jobs[name]
-#       else:
-#          meta_nh[meta] = code_nh[name]
-#          meta_jobs[meta] = code_jobs[name]
-#    if png:
-#       fig = plt.figure(1)
-#       fig.clf()
-#       ax = plt.subplot(1, 1, 1)
-#       pie_labels = []
-#       pie_vals = []
-#       pie_cols = []
-#       pie_explode = []
-#       sum_nh = 0
-#       idx = 0
-#       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
-#          pie_cols.append(pie_scalarMap.to_rgba(idx))
-#          pie_labels.append(meta)
-#          pie_vals.append(float(meta_nh[meta]))
-#          pie_explode.append(0.05)
-#          idx += 1
-#       ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols, autopct='%1.1f%%')
-#       ax.axis('equal')
-#       fig.savefig("{0}/resarea_pie.png".format(outDir))
-#    # Loop over codes printing usage
-#    if text:
-#       if units == 'nodes':
-#          sys.stdout.write("\n\nTotal research area usage (ordered by node hours)\n")
-#       elif units == 'cores':
-#          sys.stdout.write("\n\nTotal research area usage (ordered by CPUh)\n")
-#       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
-#       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
-#       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
-#          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
-#          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
-#          sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
-#       nhfrac = 100 * float(other_nh)/float(totnh)
-#       jobfrac = 100 * float(other_jobs)/float(totjobs)
-#       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
-#       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
-#       nhfrac = 100 * float(totnh)/float(totnh)
-#       jobfrac = 100 * float(totjobs)/float(totjobs)
-#       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
-#       sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    metaUsageTable("pri_lang", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, text=text, csv=csv, png=png)
+    metaUsageTable("type", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, text=text, csv=csv, png=png)
+    metaUsageTable("area", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, text=text, csv=csv, png=png)
 
     # Print out any other executables with usage over defined threshold
     percent = thresh * float(totnh)
@@ -1041,12 +925,13 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Finish nicely
     exit(0)
 
-def usageTable(metadata, outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, 
+def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, 
                units, text=True, csv=False, png=True):
     """Print basic usage breakdown table grouped by specified code attribute/metadata
       
        Arguments:
           * metadata - Attribute/metadata to group by
+          * label - Text label to use for tables and plots
           * outDir - Output directory for any written files (plots/text)
           * codes - Dictionary of code objects
           * code_nh - Dictionary of code usage by code (key is code name)
@@ -1062,6 +947,7 @@ def usageTable(metadata, outDir, codes, code_nh, code_jobs, other_nh, other_jobs
     """
     meta_nh = {}
     meta_jobs = {}
+    # Accumulate data by metadata specified
     for code in codes:
        name = getattr(code, "name")
        meta = getattr(code, metadata)
@@ -1071,6 +957,14 @@ def usageTable(metadata, outDir, codes, code_nh, code_jobs, other_nh, other_jobs
        else:
           meta_nh[meta] = code_nh[name]
           meta_jobs[meta] = code_jobs[name]
+    punit = ""
+    if units == 'nodes':
+       sys.stdout.write("\n\nTotal {0} usage (ordered by node hours)\n".format(label))
+       punit = "Nh"
+    elif units == 'cores':
+       sys.stdout.write("\n\nTotal {0} usage (ordered by CPUh)\n".format(label))
+       punit = "CPUh"
+    # Plot usage pie chart to PNG
     if png:
        import matplotlib
        matplotlib.rcParams['font.size'] = 9
@@ -1102,16 +996,11 @@ def usageTable(metadata, outDir, codes, code_nh, code_jobs, other_nh, other_jobs
           idx += 1
        ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols, autopct='%1.1f%%')
        ax.axis('equal')
-       fig.savefig("{0}/{1}_pie.png".format(outDir, metadata))
-    # Loop over codes printing usage
+       ax.title("% Usage in {0} broken down by {1}".format(punit, label))
+       fig.savefig("{0}/{1}_usage_pie.png".format(outDir, metadata))
+    # Print usage to STDOUT
     if text:
-       punit = ""
-       if units == 'nodes':
-          sys.stdout.write("\n\nTotal {0} usage (ordered by node hours)\n".format(metadata))
-          punit = "Nh"
-       elif units == 'cores':
-          sys.stdout.write("\n\nTotal {0} usage (ordered by CPUh)\n".format(metadata))
-          punit = "CPUh"
+       sys.stdout.write("\n\nTotal {0} usage (ordered by {1})\n".format(label, punit))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
        for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
@@ -1126,6 +1015,21 @@ def usageTable(metadata, outDir, codes, code_nh, code_jobs, other_nh, other_jobs
        jobfrac = 100 * float(totjobs)/float(totjobs)
        sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", totnh, nhfrac, totjobs, jobfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
+    # Print usage to CSV file
+    if csv:
+       csvfile = open("{0}/{1}_usage.csv".format(outDir, metadata), "w")
+       csvfile.write('"{0:s}","{1:s}","{2:s}","{3:s}","{4:s}"\n'.format("Code", punit, "% Time", "Jobs", "% Jobs"))
+       for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
+          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
+          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
+          csvfile.write('"{0:s}",{1:d},{2:.2f},{3:d},{4:.2f}\n'.format(meta, meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
+       nhfrac = 100 * float(other_nh)/float(totnh)
+       jobfrac = 100 * float(other_jobs)/float(totjobs)
+       csvfile.write('"{0:s}",{1:d},{2:.2f},{3:d},{4:.2f}\n'.format("Unknown", other_nh, nhfrac, other_jobs, jobfrac))
+       nhfrac = 100 * float(totnh)/float(totnh)
+       jobfrac = 100 * float(totjobs)/float(totjobs)
+       csvfile.write('"{0:s}",{1:d},{2:.2f},{3:d},{4:.2f}\n'.format("Total", totnh, nhfrac, totjobs, jobfrac))
+       csvfile.close()
 
 def printHelp(rootDir):
     """Print help for the tool.
