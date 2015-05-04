@@ -956,10 +956,8 @@ def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh,
           meta_jobs[meta] = code_jobs[name]
     punit = ""
     if units == 'nodes':
-       sys.stdout.write("\n\nTotal {0} usage (ordered by node hours)\n".format(label))
        punit = "Nh"
     elif units == 'cores':
-       sys.stdout.write("\n\nTotal {0} usage (ordered by CPUh)\n".format(label))
        punit = "CPUh"
     # Plot usage pie chart to PNG
     if png:
