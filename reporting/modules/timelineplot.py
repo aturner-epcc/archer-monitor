@@ -25,7 +25,7 @@ def get_filelist(dir, ext):
     return files
 
 
-def compute_timeline(interval, infile):
+def compute_timeline(interval, infile, debug=False):
     """
     Return dates and a timeline from specified file averaged over the 
     specified interval.
@@ -33,6 +33,7 @@ def compute_timeline(interval, infile):
     Arguments
         * interval (Integer) - The interval to average over
         * infile (String) - The input file name
+        * debug (Boolean) - Set printing of debug information
     """
 
     # Test if the file exists and open
@@ -76,11 +77,11 @@ def compute_timeline(interval, infile):
             sum = 0
 
     datafile.close()
-    print "{0}: Max y = {1}".format(infile, max)
+    if debug: print "{0}: Max y = {1}".format(infile, max)
 
     return dates, timeline
 
-def compute_multiple_timeline(ncol, interval, infile, scale=1.0):
+def compute_multiple_timeline(ncol, interval, infile, scale=1.0, debug=False):
     """
     Return dates and a timeline from specified file averaged over the 
     specified interval.
@@ -89,6 +90,7 @@ def compute_multiple_timeline(ncol, interval, infile, scale=1.0):
         * ncol (Integer) - Number of columns of y-data to read
         * interval (Integer) - The interval to average over
         * infile (String) - The input file name
+        * debug (Boolean) - Set printing of debug information
     """
 
     # Test if the file exists and open
@@ -136,7 +138,7 @@ def compute_multiple_timeline(ncol, interval, infile, scale=1.0):
 
             icount = 0
 
-    print infile + ": Max y = " + str(max)
+    if debug: print infile + ": Max y = " + str(max)
     return dates, timeline
 
 def plot_timeline(timelabels, timeline, datemin, datemax, label, axislabel,
