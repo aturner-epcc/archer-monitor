@@ -19,8 +19,8 @@
 #
 
 [code info]
-name: HiPSTAR
-regexp: jet_3d|c3d|jet_scalar_3d
+name: flow_main
+regexp: flow_main
 
 [metadata]
 primary language: Fortran
@@ -32,4 +32,4 @@ commercial license: None
 code type: Structured Grid
 
 research area: Computational Fluid Dynamics
-parallel-model: MPI+OpenMP
+parallel-model: MPI
