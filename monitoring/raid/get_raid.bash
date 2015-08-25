@@ -37,14 +37,14 @@ cat >> $htmlfile <<EOF
 <div id="machine_status_up">
    <p>RAID Check, ${fs}: <span style="color: green">Running</span></p>
    <p>Last Updated: $NICEDATE</p>
-</div>
+</div><br />
 EOF
 else
 cat >> $htmlfile <<EOF
 <div id="machine_status_down">
    <p>RAID Check, ${fs}: <span style="color: red">Not Running</span></p>
    <p>Last Updated: $NICEDATE</p>
-</div>
+</div><br />
 EOF
 fi
 done
