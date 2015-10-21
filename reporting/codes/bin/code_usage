@@ -135,13 +135,15 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:qh", 
                  ["top=", "thresh=", "bins=", "logdir=", "interval=", "start=",
-                  "end=", "cores=", "group=", "html", "quiet", "noplot", "csv", "help"])
+                  "end=", "cores=", "group=", "html", "quiet", "noplot", "csv", 
+                  "d3csv", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
     # Parse the command-line options
     byuser = False
     csv = False
+    d3csv = False
     png = True
     text = True
     userlist = ["tarje"]
@@ -163,6 +165,8 @@ def main(argv):
             html = True
         elif opt in ("--csv"):
             csv = True
+        elif opt in ("--d3csv"):
+            d3csv = True
         elif opt in ("-b", "--bins"):
             # Try to read in custom size bins from file
             if os.path.isfile(arg):
@@ -897,6 +901,16 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        if totnh > 0:
           meanjob = float(tot_sum_jobs_size)/float(totnh)
           csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Total", totnh, nhfrac, totjobs, jobfrac, totusers,uscale * meanjob, uscale * int(tot_medh)))
+       csvfile.close()
+
+    if d3csv:
+       csvfile = open("d3codes_summary.csv", "w")
+       csvfile.write('"{0}","{1}","{2}","{3}","{4}","{5}"\n'.format("Rank", "Code", "Usage", "Jobs", "Users", "AppArea"))
+       n = 0
+       for name in sorted(code_nh, key=code_nh.get, reverse=True):
+          n = n + 1
+          appType = codes[codeDict[name]].type
+          csvfile.write('{0:d},"{1}",{2:d},{3:d},{4:d},"{5}"\n'.format(n, name, code_nh[name], code_jobs[name], code_num_users[name], appType))
        csvfile.close()
 
     # Aggregate results on type metadata
