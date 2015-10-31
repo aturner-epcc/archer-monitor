@@ -23,8 +23,8 @@ name: HemeLB
 regexp: hemelb
 
 [metadata]
-primary language: Fortran
-version:          95
+primary language: C++
+version:
 
 academic license: Free
 commercial license: Free
