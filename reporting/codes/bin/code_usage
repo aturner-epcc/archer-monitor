@@ -15,7 +15,7 @@
 #===============================================================
 #
 #----------------------------------------------------------------------
-# Copyright 2014 EPCC, The University of Edinburgh
+# Copyright 2015 EPCC, The University of Edinburgh
 #
 # This file is part of archer-monitoring.
 #
@@ -61,18 +61,24 @@ def main(argv):
     #=======================================================
     rootDir = os.environ['ARCHER_MON_BASEDIR']
     outDir = os.environ['PWD']
-    # Sizes should be in nodes
+    # Default size bins, sizes should be in nodes
     sizes = [4, 64, 256, 512, 4920]
     size_labels = ["Small", "Medium", "Large", "V. Large", "Huge"]
+    # Default usage fraction threshold for reporting unknown codes
     thresh = 0.005
+    # Default interval for timeline frequency in days
     day_interval = 14
+    # Number of "top" codes to produce graphical analysis for
     ntop = 10
+    # Default scaling factor for usage
     scaleuse = 1.0
+    # Default base unit
     units = "nodes"
     punit = "Usage"
     uscale = 1
+    # Should we print HTML table of top codes?
     html = False
-    # Default logfile directory
+    # Default logfile directory on ARCHER
     DEFAULT_LOGFILE_DIR = "/home/z01/z01/archstat/archer-monitor/logs/applications"
 
     #=======================================================
@@ -81,7 +87,7 @@ def main(argv):
     codeConfigDir = rootDir + '/reporting/codes/descriptions'
     codes = []
     nCode = 0
-    # We also need to create a dictionary of resources here
+    # Create a dictionary of codes
     codeDict = {}
     for file in os.listdir(codeConfigDir):
         if fnmatch.fnmatch(file, '*.code'):
@@ -211,9 +217,6 @@ def main(argv):
 
 
     if text:
-       #=======================================================
-       # Print out the banner
-       #=======================================================
        sys.stderr.write("""
 ===========================================================================
 code_usage {0}
@@ -237,10 +240,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        printHelp(rootDir)
        exit(0)
 
-    # Read the logfile directory
+    # Read the logfile directory (assume files have extension 'apstat')
     files = get_filelist(indir, 'apstat')
 
+    #=======================================================
     # Initialise the arrays for storing the time sequence
+    #=======================================================
     datearray = []
     meanjobsize =[]
     tot_thours = []
@@ -257,6 +262,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        code_thours[name] = []
        code_tjobs[name] = []
 
+    #=======================================================
+    # Initialise the arrays for storing the total data
+    #=======================================================
     daycounter = 0
     nfilejobs = 0
     nfilenodeh = 0
@@ -276,18 +284,30 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     startdate = None
     enddate = None
 
-    # Open CSV files for time series data
+    # Open CSV files for time series data if we are printing these
     if csv:
        totcsv = open("tot_ts.csv", "w")
        totcsv.write("{0},{1},{2},{3}\n".format("Date", "Mean Job Size", "Total Usage", "Number of Jobs"))
+    
+
+    #=======================================================
+    # Loop over all log files found in the specified path
+    #=======================================================
     for file in files:
      filename = os.path.basename(file)
      filedate = filename.split('.')[0]
      fdate = datetime.strptime(filedate, "%Y-%m-%d")
+
+     #=======================================================
+     # Check if this file is in the specified date range
+     #=======================================================
      if fdate >= startfile and fdate <= endfile:
          if startdate is None: startdate = fdate
          enddate = fdate
-         # This is where we will read and process data
+
+         #=======================================================
+         # Open this logfile 
+         #=======================================================
          logFile = open(file, "r")
 
          # Zero counters for timeline
@@ -304,8 +324,6 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             other_filenhsq = 0
             other_filejobs = 0
 
-         # Initialise variables
-         intimerange = True
          # Loop over lines in the file reading them
          for line in logFile:
 
@@ -313,117 +331,113 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                timeline = line.rstrip()
                tokens = timeline.split()
             # End of if start block match
-
-            # If we are in the time range then accumulate data
-            if intimerange:
                
-               # Skip the end indicator
-               if re.match("__END", line) is not None:
-                  continue
+            # Skip the end indicator
+            if re.match("__END", line) is not None:
+                continue
 
 
-               # Extract the useful information from the log
-               line = line.rstrip()
-               tokens = line.split()
+            # Extract the useful information from the log
+            line = line.rstrip()
+            tokens = line.split()
 
-               if len(tokens) < 8:
-                   continue
-               jobid = tokens[0]
-               user = tokens[2]
-               nodes = tokens[4]
-               exename = tokens[7]
+            if len(tokens) < 8:
+               continue
+            jobid = tokens[0]
+            user = tokens[2]
+            nodes = tokens[4]
+            exename = tokens[7]
        
-               # We may need to test if we are counting this job
-               addjob = True
-               if byuser:
-                  # Space added to try and counter substring username matches
-                  if '"' + user + '"' in userlist:
-                     addjob = True
-                  else:
-                     addjob = False
+            # We may need to test if we are counting this job
+            addjob = True
+            if byuser:
+               # Quotes added to counter substring username matches
+               if '"' + user + '"' in userlist:
+                  addjob = True
+               else:
+                  addjob = False
 
-               # This is needed in case we are filtering by user
-               if addjob:
-                  # Add this number of hours to total
-                  totnh += int(nodes)
-                  nfilenodeh += int(nodes)
-                  nfilenodehsq += int(nodes) * int(nodes)
+            # This is needed in case we are filtering by user
+            if addjob:
+               # Add this number of hours to total
+               totnh += int(nodes)
+               nfilenodeh += int(nodes)
+               nfilenodehsq += int(nodes) * int(nodes)
 
-                  # Check we have not already seen this job
-                  countjob = True
-                  if jobid in matchedjobs:
-                     countjob = False
-                  else:
-                     totjobs += 1
-                     nfilejobs += 1
-                     matchedjobs[jobid] = True
+               # Check we have not already seen this job
+               countjob = True
+               if jobid in matchedjobs:
+                  countjob = False
+               else:
+                  totjobs += 1
+                  nfilejobs += 1
+                  matchedjobs[jobid] = True
    
-                  # Check if we have already seen this user
-                  if user not in users:
-                     users = "{0} {1}".format(users, user)
-                     totusers += 1
+               # Check if we have already seen this user
+               if user not in users:
+                  users = "{0} {1}".format(users, user)
+                  totusers += 1
    
-                  # Store this job by size
-                  if nodes in tot_nh_bysize:
-                     tot_nh_bysize[nodes] += int(nodes)
+               # Store this job by size
+               if nodes in tot_nh_bysize:
+                  tot_nh_bysize[nodes] += int(nodes)
+                  if countjob:
+                     tot_jobs_bysize[nodes] += 1
+               else:
+                  tot_nh_bysize[nodes] = int(nodes)
+                  if countjob:
+                     tot_jobs_bysize[nodes] = 1
+               # Loop over codes, storing this job in the correct place
+               matched = False
+               for code in codes:
+                  name = code.name
+                  # Test if this one of the known codes
+                  if re.search(code_regexp[name], exename):
+                     matched = True
+                     code_nh[name] += int(nodes)
                      if countjob:
-                        tot_jobs_bysize[nodes] += 1
-                  else:
-                     tot_nh_bysize[nodes] = int(nodes)
-                     if countjob:
-                        tot_jobs_bysize[nodes] = 1
-                  # Loop over codes, storing this job
-                  matched = False
-                  for code in codes:
-                     name = code.name
-                     if re.search(code_regexp[name], exename):
-                        matched = True
-                        code_nh[name] += int(nodes)
+                        code_jobs[name] += 1
+                        code_filejobs[name] += 1
+                     if user not in code_users[name]:
+                        code_users[name] = "{0} {1}".format(code_users[name], user)
+                        code_num_users[name] += 1
+                     code_filenh[name] += int(nodes)
+                     code_filenhsq[name] += int(nodes)*int(nodes)
+                     if (name, nodes) in code_nh_bysize:
+                        code_nh_bysize[(name, nodes)] += int(nodes)
                         if countjob:
-                           code_jobs[name] += 1
-                           code_filejobs[name] += 1
-                        if user not in code_users[name]:
-                           code_users[name] = "{0} {1}".format(code_users[name], user)
-                           code_num_users[name] += 1
-                        code_filenh[name] += int(nodes)
-                        code_filenhsq[name] += int(nodes)*int(nodes)
-                        if (name, nodes) in code_nh_bysize:
-                           code_nh_bysize[(name, nodes)] += int(nodes)
-                           if countjob:
-                              code_jobs_bysize[(name, nodes)] += 1
-                        else:
-                           code_nh_bysize[(name, nodes)] = int(nodes)
-                           if countjob:
-                              code_jobs_bysize[(name, nodes)] = 1
-                  # End of loop over codes
-   
-                  # Store if not matched to defined code
-                  if not matched:
-                     other_nh += int(nodes)
-                     if exename in other_codes:
-                        other_codes[exename] += int(nodes)
+                           code_jobs_bysize[(name, nodes)] += 1
                      else:
-                        other_codes[exename] = int(nodes)
+                        code_nh_bysize[(name, nodes)] = int(nodes)
+                        if countjob:
+                           code_jobs_bysize[(name, nodes)] = 1
+               # End of loop over codes
+   
+               # Store if not matched to defined code
+               if not matched:
+                  other_nh += int(nodes)
+                  if exename in other_codes:
+                     other_codes[exename] += int(nodes)
+                  else:
+                     other_codes[exename] = int(nodes)
+                  if countjob:
+                     other_jobs += 1
+                     other_filejobs += 1
+                  if user not in other_users:
+                     other_users = "{0} {1}".format(other_users, user)
+                     other_num_users += 1
+                  other_filenh += int(nodes)
+                  other_filenhsq += int(nodes)*int(nodes)
+                  if nodes in other_nh_bysize:
+                     other_nh_bysize[nodes] += int(nodes)
                      if countjob:
-                        other_jobs += 1
-                        other_filejobs += 1
-                     if user not in other_users:
-                        other_users = "{0} {1}".format(other_users, user)
-                        other_num_users += 1
-                     other_filenh += int(nodes)
-                     other_filenhsq += int(nodes)*int(nodes)
-                     if nodes in other_nh_bysize:
-                        other_nh_bysize[nodes] += int(nodes)
-                        if countjob:
-                           other_jobs_bysize[nodes] += 1
-                     else:
-                        other_nh_bysize[nodes] = int(nodes)
-                        if countjob:
-                           other_jobs_bysize[nodes] = 1
-                # End of if countjob
+                        other_jobs_bysize[nodes] += 1
+                  else:
+                     other_nh_bysize[nodes] = int(nodes)
+                     if countjob:
+                        other_jobs_bysize[nodes] = 1
+             # End of if countjob
  
-            # End of if intimerange
-
          # End of loop over logfile lines
          
          # Close the logfile
@@ -467,6 +481,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             daycounter = 0
 
     # End of loop over logfiles
+
     if csv:
        totcsv.close()
 
@@ -474,9 +489,16 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        sys.stdout.write("\n Started at: " + startdate.strftime("%Y-%m-%d") + "\n")
        sys.stdout.write("Finished at: " + enddate.strftime("%Y-%m-%d") + "\n")
 
-    # Get list of the top 10 codes by node hours
+    #=======================================================
+    # Compute results and print
+    #    There are a number of points here where the code should be moved
+    #    out into separate functions, just need to get round to doing it
+    #=======================================================
+    
+    # Get list of the top n codes by node hours
     top_codes = [k for k in sorted(code_nh, key=code_nh.get, reverse=True)[:ntop]]
 
+    # Print data for interactive visualisation
     if d3csv:
        d3file = open("d3codes_timeline.csv", "w")
        nrow = len(datearray)
@@ -493,6 +515,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           d3file.write(srow + "\n")
        d3file.close()
 
+    # Set up the plotting variables so they have the correct scope
     colmap = None
     cNorm = None
     scalarMap = None
@@ -597,7 +620,6 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           labels.append('Unknown')
           cursum = list(newsum)
        ax.plot(datearray, tot_thours, 'r-')
-#     ax.fill_between(datearray, cursum, tot_thours, facecolor='0.75', color='0.75')
        recs.append(mpatches.Rectangle((0, 0), 1, 1, fc='r'))
        labels.append('All')
        ax.xaxis.set_major_formatter(dates.DateFormatter("%Y-%m-%d"))
@@ -733,7 +755,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        ax.set_ylabel('Usage / ' + punit)
        fig.savefig("{0}/usagebysize_Total.png".format(outDir))
 
-       # Bar charts for each code
+       # Bar charts for each code in the top n list
        idx = 0
        for name in top_codes:
           fig = plt.figure(1)
@@ -788,8 +810,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           lines = lines + "{0:>20s}".format("====")
        sys.stdout.write(lines + "\n")
 
-    # Loop over codes printing usage
     if png:
+       # Pie chart of usage broken down by code
        fig = plt.figure(1)
        fig.clf()
        ax = plt.subplot(1, 1, 1)
@@ -819,6 +841,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        ax.axis('equal')
        fig.savefig("{0}/usage_pie.png".format(outDir))
     if text:
+       # Table of codes with usage details (format statements should be stored once and reused)
        if units == 'nodes':
           sys.stdout.write("\n\nTotal code usage (ordered by node hours)\n")
        elif units == 'cores':
@@ -896,6 +919,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        htmlfile.close()
 
     if csv:
+       # CSV version of table if required
        csvfile = open("code_summary.csv", "w")
        csvfile.write('"{0}","{1}","{2}","{3}","{4}","{5}","{6}","{7}"\n'.format("Code", punit, "% Time", "Jobs", "% Jobs", "Users", "Mean", "Median"))
        for name in sorted(code_nh, key=code_nh.get, reverse=True):
@@ -920,6 +944,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        csvfile.close()
 
     if d3csv:
+       # CSV version for interactive visualisation
        csvfile = open("d3codes_summary.csv", "w")
        csvfile.write('"{0}","{1}","{2}","{3}","{4}","{5}","{6}","{7}","{8}"\n'.format("Rank", "Code", "Usage", "Jobs", "Users", "CodeType", "ProgLang", "ResArea", "LicType"))
        n = 0
@@ -1109,7 +1134,23 @@ OPTIONS
                             4, 64, 256, 512, 4920
                             Small Medium Large V.Large Huge
 
--h,--help                   Show this help.
+-i,--interval <days>        Interval at which to accumulate data for time series.
+                            Deafult is 14 (2 weeks).
+
+-q,--quiet                  Do not produce any text output to terminal
+
+--top <number>              Number of top codes to produce graphs for. Default is 10
+
+--noplot                    Do not produce graphs
+
+--html                      Write html version of code usage table
+
+--csv                       Write CSV files corresponding to all output tables
+
+--thresh <number>           Usage fraction above which unknown codes found in analysis 
+                            should be printed. Default is 0.005 (0.5% of total usage).
+
+--help                      Show this help.
 """
 
 if __name__ == "__main__":
