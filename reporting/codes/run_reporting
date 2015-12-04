@@ -1,0 +1,24 @@
+#!/bin/bash 
+#
+# Plot code usage data
+#
+# Depends on ARCHER_MON_BASEDIR being set
+#
+if (( $# > 0 )); then
+   # Loop over command line arguments, running commands
+   for report in "$@"
+   do
+      case "$report" in
+         d3code)
+            # Get code usage for last month for plotting with d3
+            sdate=$(date -d "30 days ago" +"%Y-%m-%d")
+            $ARCHER_MON_BASEDIR/reporting/codes/bin/code_usage --start $sdate --d3csv -q --noplot
+            ;;
+         *)
+            echo "Option $report not recognised"
+            exit 1
+      esac
+   done
+fi
+
+exit 0

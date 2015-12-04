@@ -60,6 +60,7 @@ def main(argv):
     # Global configuration section
     #=======================================================
     rootDir = os.environ['ARCHER_MON_BASEDIR']
+    d3Dir = rootDir + "/output/usage"
     outDir = os.environ['PWD']
     # Default size bins, sizes should be in nodes
     sizes = [4, 64, 256, 512, 4920]
@@ -119,8 +120,6 @@ def main(argv):
     other_jobs = 0
     other_jobs_bysize = {}
     other_codes = {}
-    code_nh_bysize = {}
-    code_jobs_bysize = {}
     for size in sizes:
        tot_nh_bysize[size] = 0
        tot_jobs_bysize[size] = 0
@@ -387,6 +386,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                   tot_nh_bysize[nodes] = int(nodes)
                   if countjob:
                      tot_jobs_bysize[nodes] = 1
+                  else:
+                     tot_jobs_bysize[nodes] = 0
                # Loop over codes, storing this job in the correct place
                matched = False
                for code in codes:
@@ -411,6 +412,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                         code_nh_bysize[(name, nodes)] = int(nodes)
                         if countjob:
                            code_jobs_bysize[(name, nodes)] = 1
+                        else:
+                           code_jobs_bysize[(name, nodes)] = 0
+
                # End of loop over codes
    
                # Store if not matched to defined code
@@ -436,6 +440,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                      other_nh_bysize[nodes] = int(nodes)
                      if countjob:
                         other_jobs_bysize[nodes] = 1
+                     else:
+                        other_jobs_bysize[nodes] = 0
              # End of if countjob
  
          # End of loop over logfile lines
@@ -500,7 +506,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
     # Print data for interactive visualisation
     if d3csv:
-       d3file = open("d3codes_timeline.csv", "w")
+       d3file = open(d3Dir + "/d3codes_timeline.csv", "w")
        nrow = len(datearray)
        srow = "Date"
        for code in codes:
@@ -945,7 +951,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
     if d3csv:
        # CSV version for interactive visualisation
-       csvfile = open("d3codes_summary.csv", "w")
+       csvfile = open(d3Dir + "/d3codes_summary.csv", "w")
        csvfile.write('"{0}","{1}","{2}","{3}","{4}","{5}","{6}","{7}","{8}"\n'.format("Rank", "Code", "Usage", "Jobs", "Users", "CodeType", "ProgLang", "ResArea", "LicType"))
        n = 0
        for name in sorted(code_nh, key=code_nh.get, reverse=True):
