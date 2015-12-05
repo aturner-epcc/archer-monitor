@@ -60,7 +60,8 @@ def main(argv):
     # Global configuration section
     #=======================================================
     rootDir = os.environ['ARCHER_MON_BASEDIR']
-    d3Dir = rootDir + "/output/usage"
+    outputDir = os.environ['ARCHER_MON_OUTDIR']
+    d3Dir = outputDir + "/output/usage"
     outDir = os.environ['PWD']
     # Default size bins, sizes should be in nodes
     sizes = [4, 64, 256, 512, 4920]
