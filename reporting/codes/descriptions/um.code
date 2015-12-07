@@ -26,8 +26,8 @@ regexp: x*\.exe
 primary language: Fortran
 version:          95
 
-academic license: Fee
-commercial license: Fee
+academic license: Fee Payment
+commercial license: Fee Payment
 
 code type: Structured Grid
 
