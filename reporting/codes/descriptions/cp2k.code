@@ -48,8 +48,8 @@ primary language: Fortran
 version:          95
 
 # Licensing 
-academic license: Open Source: GPL
-commercial license: Open Source: GPL
+academic license: Open Source
+commercial license: Open Source
 
 # Rough code category
 code type: Periodic Electronic Structure

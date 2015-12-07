@@ -26,8 +26,8 @@ regexp: fluidity
 primary language: Fortran
 version:          95
 
-academic license: Free
-commercial license: Fee
+academic license: Open Source
+commercial license: Open Source
 
 code type: Unstructured Grid
 

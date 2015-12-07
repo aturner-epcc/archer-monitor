@@ -26,8 +26,8 @@ regexp: mdrun
 primary language: C
 version:         
 
-academic license: Open Source: GPL
-commercial license: Open Source: GPL
+academic license: Open Source
+commercial license: Open Source
 
 code type: N-body
 

@@ -26,8 +26,8 @@ regexp: gs2
 primary language: Fortran
 version:          95
 
-academic license: Free
-commercial license: Free
+academic license: Academic Free
+commercial license: None
 
 code type: Structured Grid
 

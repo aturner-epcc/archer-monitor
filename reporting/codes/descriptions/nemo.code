@@ -26,8 +26,8 @@ regexp: nemo|opa|orca|xios_server
 primary language: Fortran
 version:          95
 
-academic license: Free
-commercial license: Fee
+academic license: Academic Free
+commercial license: None
 
 code type: Structured Grid
 

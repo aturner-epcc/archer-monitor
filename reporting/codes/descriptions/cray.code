@@ -26,8 +26,8 @@ regexp: memtest
 primary language: C
 version:          
 
-academic license: Unknown
-commercial license: Unknown
+academic license: None
+commercial license: None
 
 code type: Test Code
 

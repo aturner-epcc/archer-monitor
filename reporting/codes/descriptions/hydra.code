@@ -26,8 +26,8 @@ regexp: jm51|hyd-|hydra
 primary language: Fortran
 version:          
 
-academic license:
-commercial license:
+academic license: None
+commercial license: None
 
 code type: Unstructured Grid
 

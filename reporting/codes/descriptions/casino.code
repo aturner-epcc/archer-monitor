@@ -26,8 +26,8 @@ regexp: casino
 primary language: Fortran
 version:          95
 
-academic license: Free
-commercial license: Fee
+academic license: Academic Free
+commercial license: Fee Payment
 
 code type: Monte Carlo
 
