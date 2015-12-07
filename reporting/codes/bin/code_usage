@@ -153,7 +153,7 @@ def main(argv):
     d3csv = False
     png = True
     text = True
-    userlist = ["tarje"]
+    userlist = []
     group = None
     startfile = datetime.utcfromtimestamp(0)
     endfile = datetime.now()
@@ -161,6 +161,7 @@ def main(argv):
     for opt, arg in opts:
         if opt in ("-c", "--cores"):
             units = "cores"
+            punit = "CPUh"
             uscale = int(arg)
         elif opt in ("-q", "--quiet"):
             text = False
@@ -896,8 +897,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 <table class="cse-table">
    <tr>
       <th>Code Name</th>
-      <th>{0}</th>
-      <th>% {0}</th>
+      <th>Usage / {0}</th>
+      <th>% Usage</th>
       <th>Jobs</th>
       <th>% Jobs</th>
       <th>Users</th>
