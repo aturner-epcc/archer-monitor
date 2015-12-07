@@ -915,7 +915,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           meanjob = 0.0
           if code_nh[name] > 0:
              meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
-          htmlfile.write("""
+          if code_jobs[name] > 0:
+             htmlfile.write("""
    <tr>      
       <td>{0}</td>
       <td>{1}</td>
@@ -934,7 +935,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        meanjob = 0.0
        if other_nh > 0:
           meanjob = float(other_sum_jobs_size)/float(other_nh)
-       htmlfile.write("""
+       if other_jobs > 0:
+          htmlfile.write("""
    <tr>      
       <td></td>
       <td>{0}</td>
@@ -946,7 +948,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
       <td>{6:.2f}</td>
       <td>{7:d}</td>
    </tr>      
-""".format(name, other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
+""".format("Other", other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
 
        nhfrac = 100 * float(totnh)/float(totnh)
        jobfrac = 100 * float(totjobs)/float(totjobs)
@@ -965,7 +967,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
       <td>{6:.2f}</td>
       <td>{7:d}</td>
    </tr>      
-""".format(name, totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
+""".format("Total", totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
 
        htmlfile.write("</table>\n")
        htmlfile.close()
