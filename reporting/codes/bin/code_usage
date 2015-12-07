@@ -896,6 +896,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        htmlfile.write("""
 <table class="cse-table">
    <tr>
+      <th>Rank</th>
       <th>Code Name</th>
       <th>Usage / {0}</th>
       <th>% Usage</th>
@@ -906,7 +907,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
       <th>Median Job Size</th>
    </tr>
 """.format(punit))
-       for name in top_codes:
+       index = 0
+       for name in sorted(code_nh, key=code_nh.get, reverse=True):
+          index += 1
           nhfrac = 100 * float(code_nh[name])/float(totnh)
           jobfrac = 100 * float(code_jobs[name])/float(totjobs)
           meanjob = 0.0
@@ -914,6 +917,26 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
              meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
           htmlfile.write("""
    <tr>      
+      <td>{0}</td>
+      <td>{1}</td>
+      <td>{2:d}</td>
+      <td>{3:.2f}</td>
+      <td>{4:d}</td>
+      <td>{5:.2f}</td>
+      <td>{6:d}</td>
+      <td>{7:.2f}</td>
+      <td>{8:d}</td>
+   </tr>      
+""".format(index, name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+
+       nhfrac = 100 * float(other_nh)/float(totnh)
+       jobfrac = 100 * float(other_jobs)/float(totjobs)
+       meanjob = 0.0
+       if other_nh > 0:
+          meanjob = float(other_sum_jobs_size)/float(other_nh)
+       htmlfile.write("""
+   <tr>      
+      <td></td>
       <td>{0}</td>
       <td>{1:d}</td>
       <td>{2:.2f}</td>
@@ -923,7 +946,27 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
       <td>{6:.2f}</td>
       <td>{7:d}</td>
    </tr>      
-""".format(name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+""".format(name, other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
+
+       nhfrac = 100 * float(totnh)/float(totnh)
+       jobfrac = 100 * float(totjobs)/float(totjobs)
+       meanjob = 0.0
+       if totnh > 0:
+          meanjob = float(tot_sum_jobs_size)/float(totnh)
+       htmlfile.write("""
+   <tr>      
+      <td></td>
+      <td>{0}</td>
+      <td>{1:d}</td>
+      <td>{2:.2f}</td>
+      <td>{3:d}</td>
+      <td>{4:.2f}</td>
+      <td>{5:d}</td>
+      <td>{6:.2f}</td>
+      <td>{7:d}</td>
+   </tr>      
+""".format(name, totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
+
        htmlfile.write("</table>\n")
        htmlfile.close()
 
