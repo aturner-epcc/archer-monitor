@@ -681,7 +681,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     for nodes in sorted(tot_nh_bysize, key=int):
        tot_sum_jobs_size += int(nodes) * int(tot_nh_bysize[nodes])
        tot_sumh += int(tot_nh_bysize[nodes])
-       if tot_sumh < (totnh/2.0):
+       if tot_medh < 0.1:
+          tot_medh = nodes
+       if tot_sumh < totnh/2.0:
           tot_medh = nodes
        for size in sizes:
           if int(nodes) <= int(size):
@@ -689,6 +691,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
              btot_jobs_bysize[size] += int(tot_jobs_bysize[nodes])
              if nodes in other_nh_bysize:
                 other_sumh += int(tot_nh_bysize[nodes])
+                if other_sumh < 0.1:
+                   other_medh = nodes
                 if other_sumh < other_nh / 2.0:
                    other_medh = nodes
                 other_sum_jobs_size += int(nodes) * int(other_nh_bysize[nodes])
@@ -698,6 +702,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                 name = code.name
                 if (name, nodes) in code_nh_bysize:
                    code_sumh[name] += code_nh_bysize[(name, nodes)]
+                   if code_sumh[name] < 0.1:
+                      code_medh[name] = nodes
                    if code_sumh[name] < code_nh[name]/2.0:
                       code_medh[name] = nodes
                    code_sum_jobs_size[name] += int(nodes) * int(code_nh_bysize[(name, nodes)])
