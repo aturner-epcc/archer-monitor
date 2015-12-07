@@ -77,7 +77,7 @@ def main(argv):
     scaleuse = 1.0
     # Default base unit
     units = "nodes"
-    punit = "Usage"
+    punit = "Nh"
     uscale = 1
     # Should we print HTML table of top codes?
     html = False
