@@ -62,6 +62,7 @@ def main(argv):
     rootDir = os.environ['ARCHER_MON_BASEDIR']
     outputDir = os.environ['ARCHER_MON_OUTDIR']
     d3Dir = outputDir + "/usage"
+    htmlDir = outputDir + "/usage"
     outDir = os.environ['PWD']
     # Default size bins, sizes should be in nodes
     sizes = [4, 64, 256, 512, 4920]
@@ -886,7 +887,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
     # Write HTML table if required
     if html:
-       htmlfile = open("top.html", "w")
+       htmlfile = open(htmlDir + "/top_codes.html", "w")
        if units == 'nodes':
           htmlfile.write("<p>Code usage for top {0:d} codes (ordered by node hours)</p>\n".format(ntop))
        elif units == 'cores':
