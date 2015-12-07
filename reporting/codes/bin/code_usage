@@ -889,10 +889,6 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Write HTML table if required
     if html:
        htmlfile = open(htmlDir + "/top_codes.html", "w")
-       if units == 'nodes':
-          htmlfile.write("<p>Code usage for top {0:d} codes (ordered by node hours)</p>\n".format(ntop))
-       elif units == 'cores':
-          htmlfile.write("<p>Code usage for top {0:d} codes (ordered by CPUh)</p>\n".format(ntop))
        htmlfile.write("""
 <table class="cse-table">
    <tr>
@@ -903,10 +899,10 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
       <th>Jobs</th>
       <th>% Jobs</th>
       <th>Users</th>
-      <th>Mean Job Size</th>
-      <th>Median Job Size</th>
+      <th>Mean Job Size / {1}</th>
+      <th>Median Job Size / {1}</th>
    </tr>
-""".format(punit))
+""".format(punit, units))
        index = 0
        for name in sorted(code_nh, key=code_nh.get, reverse=True):
           index += 1
