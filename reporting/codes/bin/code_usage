@@ -59,8 +59,10 @@ def main(argv):
     #=======================================================
     # Global configuration section
     #=======================================================
+    # This needs to be set so we know where to get the code descriptions
     rootDir = os.environ['ARCHER_MON_BASEDIR']
-    outputDir = os.environ['ARCHER_MON_OUTDIR']
+    # Where to place the output files (use env variable or current directory)
+    outputDir = os.environ.get('ARCHER_MON_OUTDIR', '.')
     d3Dir = outputDir + "/usage"
     htmlDir = outputDir + "/usage"
     outDir = os.environ['PWD']
