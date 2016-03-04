@@ -1,0 +1,401 @@
+#!/usr/bin/env python
+#
+#===============================================================
+# code_analysis
+#
+# Analyse code usage from captured apstat output
+#===============================================================
+#
+#===============================================================
+# v0.1 - Refactoring code_usage script for more flexible analysis
+#===============================================================
+#
+#----------------------------------------------------------------------
+# Copyright 2015 EPCC, The University of Edinburgh
+#
+# This file is part of archer-monitoring.
+#
+# archer-monitoring is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# archer-monitoring is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with archer-monitoring.  If not, see <http://www.gnu.org/licenses/>.
+#----------------------------------------------------------------------
+#
+# For help see function at bottom of source
+#
+__author__ = 'Andrew Turner, EPCC, The University of Edinburgh'
+__version__ = '0.1'
+
+# Import the required modules
+from code_def import CodeDef
+from timelineplot import get_filelist
+from datetime import datetime, timedelta
+import pandas as pd
+import numpy as np
+import err_handle as error
+import sys
+import os
+import fnmatch
+import getopt
+import subprocess
+import ConfigParser
+import grp
+import re
+import time
+
+def main(argv):
+
+    #=======================================================
+    # Global configuration section
+    #=======================================================
+    # This needs to be set so we know where to get the code descriptions
+    rootDir = os.environ['ARCHER_MON_BASEDIR']
+    # Where to place the output files (use env variable or current directory)
+    outputDir = os.environ.get('ARCHER_MON_OUTDIR', '.')
+    d3Dir = outputDir + "/usage"
+    htmlDir = outputDir + "/usage"
+    outDir = os.environ['PWD']
+    # Default size bins, sizes should be in nodes
+    sizes = [4, 64, 256, 512, 4920]
+    size_labels = ["Small", "Medium", "Large", "V. Large", "Huge"]
+    # Default usage fraction threshold for reporting unknown codes
+    thresh = 0.005
+    # Default interval for timeline frequency in days
+    day_interval = 14
+    # Number of "top" codes to produce graphical analysis for
+    ntop = 10
+    # Default scaling factor for usage
+    scaleuse = 1.0
+    # Default base unit
+    units = "nodes"
+    punit = "Nh"
+    uscale = 1
+    # Should we print HTML table of top codes?
+    html = False
+    # Default logfile directory on ARCHER
+    DEFAULT_LOGFILE_DIR = "/home/z01/z01/archstat/archer-monitor/logs/applications"
+
+    #=======================================================
+    # Read any code definitions
+    #=======================================================
+    codeConfigDir = rootDir + '/reporting/codes/descriptions'
+    codes = []
+    nCode = 0
+    # Create a dictionary of codes
+    codeDict = {}
+    for file in os.listdir(codeConfigDir):
+        if fnmatch.fnmatch(file, '*.code'):
+            nCode += 1
+            code = CodeDef()   
+            code.readConfig(codeConfigDir + '/' + file)
+            codes.append(code)
+            codeDict[code.name] = nCode - 1
+
+    # Here we loop over all defined codes zeroing the appropriate variables and dicts
+    users = ''
+
+    #=======================================================
+    # Command line options
+    #=======================================================
+    # Read the command-line options
+    try:
+        opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:qh", 
+                 ["top=", "thresh=", "bins=", "logdir=", "interval=", "start=",
+                  "end=", "cores=", "group=", "html", "quiet", "noplot", "csv", 
+                  "d3csv", "help"])
+    except getopt.GetoptError:
+        error.handleError("Could not parse command line options\n")
+
+    # Parse the command-line options
+    byuser = False
+    csv = False
+    d3csv = False
+    png = True
+    text = True
+    userlist = []
+    group = None
+    startfile = datetime.utcfromtimestamp(0)
+    endfile = datetime.now()
+    indir = DEFAULT_LOGFILE_DIR
+    for opt, arg in opts:
+        if opt in ("-c", "--cores"):
+            units = "cores"
+            punit = "CPUh"
+            uscale = int(arg)
+        elif opt in ("-q", "--quiet"):
+            text = False
+        elif opt in ("--top"):
+            ntop = int(arg)
+        elif opt in ("--noplot"):
+            png = False
+        elif opt in ("--html"):
+            html = True
+        elif opt in ("--csv"):
+            csv = True
+        elif opt in ("--d3csv"):
+            d3csv = True
+        elif opt in ("-b", "--bins"):
+            # Try to read in custom size bins from file
+            if os.path.isfile(arg):
+               binfile = open(arg, "r")
+               line = binfile.readline()
+               sizes = line.rstrip().split()
+               # Must convert from string to int for this to work
+               sizes = [int(size) for size in sizes]
+               line = binfile.readline()
+               size_labels = line.rstrip().split()
+               binfile.close()
+            else:
+               print "**ERROR - Histogram bins file is not valid: " + arg
+               printHelp(rootDir)
+               exit(0)
+        elif opt in ("--thresh"):
+            thresh = float(arg)
+        elif opt in ("-l", "--logdir"):
+            indir = arg
+        elif opt in ("-i", "--interval"):
+            day_interval = int(arg)
+        elif opt in ("-s", "--start"):
+            startfile = datetime.strptime(arg, "%Y-%m-%d")
+        elif opt in ("-e", "--end"):
+            endfile = datetime.strptime(arg, "%Y-%m-%d")
+        elif opt in ("-g", "--group"):
+            print "   Getting usage for groups = {0}".format(arg)
+            groups = arg.split(",")
+            for group in groups:
+               bashCommand = "ldapsearch -x cn={0}".format(group)
+               ldap = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+               users = ldap.communicate()[0]
+               for line in users.splitlines():
+                  if "memberUid" in line:
+                     line = line.rstrip()
+                     tokens = line.split()
+                     userlist.append('"' + tokens[1] + '"')
+            byuser = True
+        elif opt in ("-h", "--help"):
+            printHelp(rootDir)
+            exit(0)
+
+
+    if text:
+       sys.stderr.write("""
+===========================================================================
+code_analysis {0}
+---------------------------------------------------------------------------
+Copyright 2012-2016 EPCC, The University of Edinburgh
+This program comes with ABSOLUTELY NO WARRANTY. This is free software, and
+you are welcome to redistribute it under certain conditions. See the GNU
+General Public License for more details: <http://www.gnu.org/licenses/>.
+===========================================================================
+""".format(__version__))
+       sys.stdout.write("Analysing data in: {0}\n".format(indir))
+       print "Number of high usage codes: ", ntop
+       if uscale > 1:
+          print "Cores per node: ", uscale
+       if group is not None:
+          print "Restricting usage to group: " + group
+
+    # Check the directory exists
+    if not os.path.isdir(indir):
+       print "**ERROR - Log directory is not valid: " + indir
+       printHelp(rootDir)
+       exit(0)
+
+    # Read the logfile directory (assume files have extension 'apstat')
+    files = get_filelist(indir, 'apstat')
+
+    startdate = None
+    enddate = None
+
+    #=======================================================
+    # Initialise the arrays for storing the total data
+    #=======================================================
+    totjobs = 0
+    totnh = 0
+    matchedjobs = {}
+    usergroup = {}
+    jobframe_proto = []
+
+    #=======================================================
+    # Loop over all log files found in the specified path
+    #=======================================================
+    for file in files:
+       filename = os.path.basename(file)
+       filedate = filename.split('.')[0]
+       fdate = datetime.strptime(filedate, "%Y-%m-%d")
+
+       #=======================================================
+       # Check if this file is in the specified date range
+       #=======================================================
+       if fdate >= startfile and fdate <= endfile:
+          if startdate is None: startdate = fdate
+          enddate = fdate
+
+          #=======================================================
+          # Open this logfile 
+          #=======================================================
+          logFile = open(file, "r")
+          print file
+
+          # Loop over lines in the file reading them
+          for line in logFile:
+
+             if re.match("__START", line) is not None:
+                timeline = line.rstrip()
+                tokens = timeline.split()
+             # End of if start block match
+               
+             # Skip the end indicator
+             if re.match("__END", line) is not None:
+                 continue
+
+
+             # Extract the useful information from the log
+             line = line.rstrip()
+             tokens = line.split()
+
+             if len(tokens) < 8:
+                continue
+             jobid = tokens[0]
+             user = tokens[2]
+             nodes = int(tokens[4])
+             exename = tokens[7]
+
+             # Assign a project based on the username
+             project = None
+             if user in usergroup:
+                project = usergroup[user]
+             else:
+                bashCommand = "id -Gn {0}".format(user)
+                getgroup = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+                groups = getgroup.communicate()[0]
+                project = groups.split()[0]
+                usergroup[user] = project
+
+             # Try to match the code
+             codename = "Other"
+             for code in codes:
+                name = code.name
+                # Test if this one of the known codes
+                if re.search(code.regexp, exename):
+                   codename = name
+
+             # Temporary dict for storing this line
+             jobdict = {'JobID': jobid,
+                        'User': user,
+                        'Project': project,
+                        'Nodes': nodes,
+                        'Exe': exename,
+                        'Code': codename,
+                        'Jobs': 1,
+                        'Nh': nodes}
+
+             totnh += nodes
+
+             # Test if we already have this job
+             jobidx = 0
+             if jobid in matchedjobs:
+                # Yes, get the index and increment the node hours
+                jobidx = matchedjobs[jobid]
+                jobframe_proto[jobidx]['Nh'] += nodes
+             else:
+                # No, set a new index and append to the proto frame
+                matchedjobs[jobid] = totjobs
+                jobidx = totjobs
+                totjobs += 1
+                jobframe_proto.append(jobdict)
+  
+          # End of loop over logfile lines
+          
+          # Close the logfile
+          logFile.close()
+
+    # End of loop over logfiles
+
+    print "Totals = ", totjobs, totnh
+
+    jobframe = pd.DataFrame(jobframe_proto)
+
+    print jobframe.count()
+
+    print jobframe['Nh'].sum()
+
+    grouped = jobframe.groupby('Code')
+    print grouped.agg(np.sum)
+
+    sys.exit(0)
+
+def printHelp(rootDir):
+    """Print help for the tool.
+           
+           Arguments:
+              str rootDir - The root install directory of the tool.
+        """
+
+    print """Get code usage statistics from specified log file.
+
+USAGE
+
+code_usage [options]
+
+OPTIONS
+
+-l,--logdir <log directory> Directory containing the logfiles to analyse. The
+                            default is:
+                            /home/z01/z01/archstat/archer-monitor/logs/applications
+
+-c,--cores  <number>        Report data in CPUh instead of node hours (Nh). The
+                            number specifies the number of cores per node for the
+                            conversion.
+
+-s,--start  yyyy-mm-dd      Start date for analysis (default is start of data in logfiles) 
+-e,--end    yyyy-mm-dd      End date for analysis (default is end of data in logfiles) 
+
+-g,--group  <group1>,<group2> Restrict analysis to specified groups (e.g. n01,n02)
+
+-b,--bins   <filename>      Specify the histogram bins for binning the data as 
+                            a function of job size. The ASCII file specified should
+                            contain two lines: the fist line is a space separated 
+                            list of the upper limits of the bins (in nodes), the
+                            second line is a space separted list of the labels for
+                            the bins. The two lines must contain the same number
+                            of items. For example:
+
+                            512 4920
+                            Small Large
+
+                            If this option is not specified then the default binning
+                            will be used. This is equivalent to a file with:
+  
+                            4, 64, 256, 512, 4920
+                            Small Medium Large V.Large Huge
+
+-i,--interval <days>        Interval at which to accumulate data for time series.
+                            Deafult is 14 (2 weeks).
+
+-q,--quiet                  Do not produce any text output to terminal
+
+--top <number>              Number of top codes to produce graphs for. Default is 10
+
+--noplot                    Do not produce graphs
+
+--html                      Write html version of code usage table
+
+--csv                       Write CSV files corresponding to all output tables
+
+--thresh <number>           Usage fraction above which unknown codes found in analysis 
+                            should be printed. Default is 0.005 (0.5% of total usage).
+
+--help                      Show this help.
+"""
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
