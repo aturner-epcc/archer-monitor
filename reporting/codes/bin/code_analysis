@@ -40,6 +40,9 @@ from timelineplot import get_filelist
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
 import err_handle as error
 import sys
 import os
@@ -324,12 +327,21 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
     jobframe = pd.DataFrame(jobframe_proto)
 
-    print jobframe.count()
+    users = jobframe.User.ravel()
+    nusers = len(pd.unique(users))
 
-    print jobframe['Nh'].sum()
+    for code in codes:
+       name = code.name
+       print name
+       codeframe = jobframe.loc[jobframe['Code'] == name]
+       if len(codeframe.index) > 0:
+          print codeframe.Nodes.quantile()
+       else:
+          print "No jobs"
 
-    grouped = jobframe.groupby('Code')
-    print grouped.agg(np.sum)
+#    w = jobframe['Nh'].tolist()
+#    myhist = jobframe.hist(bins=50,column="Nodes", weights=w)
+#    plt.savefig("t.png")
 
     sys.exit(0)
 
