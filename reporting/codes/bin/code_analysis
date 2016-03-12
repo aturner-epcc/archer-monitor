@@ -333,54 +333,20 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     for name in reversed(codesum.index):
        if name == "Other":
           continue
-       # Rescale sizes by factor
-       code_nodelist[name][:] = [x*size_scale for x in code_nodelist[name]]
-       codeseries = pd.Series(code_nodelist[name])
-       if len(codeseries.index) > 0:
-          usage = codesum.loc[name]['Nh']
-          pusage = 100.0 * usage / totuse
-          # Need to divide by use_scale as we multiplied by it earlier
-          jobs = codesum.loc[name]['Jobs'] / use_scale
-          pjobs = 100.0 * jobs / totjobs
-          min = codeseries.min()
-          median = codeseries.quantile()
-          max = codeseries.max()
-          mean = codeseries.mean()
+       if len(code_nodelist[name]) > 0:
           users = jobframe.loc[jobframe['Code'] == name].User.ravel()
           nusers = len(pd.unique(users))
-          print "{0:18} {1:10.0f} {2:6.2f}% {3:10.0f} {4:6.2f}% {5:9.1f} {6:9.1f} {7:9.1f} {8:9.2f} {9:4d}".format(name, usage, pusage, jobs, pjobs, min, median, max, mean, nusers)
-
+          statsReport(name, codesum.loc[name]['Nh'], codesum.loc[name]['Jobs'] / use_scale, 
+                      totuse, totjobs, nusers, [x*size_scale for x in code_nodelist[name]])
           # Lists for boxplots
           codeplot.insert(0, code_nodelist[name])
           codelabels.insert(0, name)
-
-    # Rescale sizes by factor
-    code_nodelist['Other'][:] = [x*size_scale for x in code_nodelist['Other']]
-    codeseries = pd.Series(code_nodelist[name])
-    if len(codeseries.index) > 0:
-       usage = codesum.loc['Other']['Nh']
-       pusage = 100.0 * usage / totuse
-       # Need to divide by use_scale as we multiplied by it earlier
-       jobs = codesum.loc['Other']['Jobs'] / use_scale
-       pjobs = 100.0 * jobs / totjobs
-       min = codeseries.min()
-       median = codeseries.quantile()
-       max = codeseries.max()
-       mean = codeseries.mean()
+    if len(code_nodelist['Other']) > 0:
        users = jobframe.loc[jobframe['Code'] == 'Other'].User.ravel()
        nusers = len(pd.unique(users))
-       print "{0:18} {1:10.0f} {2:6.2f}% {3:10.0f} {4:6.2f}% {5:9.1f} {6:9.1f} {7:9.1f} {8:9.2f} {9:4d}".format('Other', usage, pusage, jobs, pjobs, min, median, max, mean, nusers)
-    usage = totuse
-    pusage = 100.0 * usage / totuse
-    # Need to divide by use_scale as we multiplied by it earlier
-    jobs = totjobs
-    pjobs = 100.0 * jobs / totjobs
-    min = tot_series.min()
-    median = tot_series.quantile()
-    max = tot_series.max()
-    mean = tot_series.mean()
-    nusers = totusers
-    print "{0:18} {1:10.0f} {2:6.2f}% {3:10.0f} {4:6.2f}% {5:9.1f} {6:9.1f} {7:9.1f} {8:9.2f} {9:4d}".format('Total', usage, pusage, jobs, pjobs, min, median, max, mean, nusers)
+       statsReport("Unidentified", codesum.loc['Other']['Nh'], codesum.loc['Other']['Jobs'] / use_scale, 
+                   totuse, totjobs, nusers, [x*size_scale for x in code_nodelist['Other']])
+    statsReport("Overall", totuse, totjobs, totuse, totjobs, totusers, tot_nodelist)
     codeplot.insert(0, tot_series)
     codelabels.insert(0, 'Overall')
 
@@ -391,6 +357,17 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     plt.clf()
 
     sys.exit(0)
+
+def statsReport(label, use, jobs, totuse, totjobs, nusers, datalist):
+    dataseries = pd.Series(datalist)
+    pusage = 100.0 * use / totuse
+    pjobs = 100.0 * jobs / totjobs
+    min = dataseries.min()
+    median = dataseries.quantile()
+    max = dataseries.max()
+    mean = dataseries.mean()
+    print "{0:18} {1:10.0f} {2:6.2f}% {3:10.0f} {4:6.2f}% {5:9.1f} {6:9.1f} {7:9.1f} {8:9.2f} {9:4d}".format(label, use, pusage, jobs, pjobs, min, median, max, mean, nusers)
+
 
 def printHelp(rootDir):
     """Print help for the tool.
