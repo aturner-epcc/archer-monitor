@@ -41,8 +41,10 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
+matplotlib.rcParams.update({'font.size': 9})
+matplotlib.rcParams.update({'figure.autolayout': True})
 import err_handle as error
 import sys
 import os
@@ -78,9 +80,10 @@ def main(argv):
     # Default scaling factor for usage
     scaleuse = 1.0
     # Default base unit
-    units = "nodes"
-    punit = "Nh"
-    uscale = 1
+    size_unit = "Nodes"
+    size_scale = 1.0
+    use_unit = "Nh"
+    use_scale = 1.0
     # Should we print HTML table of top codes?
     html = False
     # Default logfile directory on ARCHER
@@ -110,15 +113,14 @@ def main(argv):
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:qh", 
-                 ["top=", "thresh=", "bins=", "logdir=", "interval=", "start=",
-                  "end=", "cores=", "group=", "html", "quiet", "noplot", "csv", 
-                  "d3csv", "help"])
+        opts, args = getopt.getopt(argv, "l:s:e:c:g:k:h", 
+                 ["logdir=", "start=", "end=", "cores=", "group=", "kau=", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
     # Parse the command-line options
-    byuser = False
+    bygroup = False
+    grouplist = None
     csv = False
     d3csv = False
     png = True
@@ -130,59 +132,21 @@ def main(argv):
     indir = DEFAULT_LOGFILE_DIR
     for opt, arg in opts:
         if opt in ("-c", "--cores"):
-            units = "cores"
-            punit = "CPUh"
-            uscale = int(arg)
-        elif opt in ("-q", "--quiet"):
-            text = False
-        elif opt in ("--top"):
-            ntop = int(arg)
-        elif opt in ("--noplot"):
-            png = False
-        elif opt in ("--html"):
-            html = True
-        elif opt in ("--csv"):
-            csv = True
-        elif opt in ("--d3csv"):
-            d3csv = True
-        elif opt in ("-b", "--bins"):
-            # Try to read in custom size bins from file
-            if os.path.isfile(arg):
-               binfile = open(arg, "r")
-               line = binfile.readline()
-               sizes = line.rstrip().split()
-               # Must convert from string to int for this to work
-               sizes = [int(size) for size in sizes]
-               line = binfile.readline()
-               size_labels = line.rstrip().split()
-               binfile.close()
-            else:
-               print "**ERROR - Histogram bins file is not valid: " + arg
-               printHelp(rootDir)
-               exit(0)
-        elif opt in ("--thresh"):
-            thresh = float(arg)
+            size_unit = "Cores"
+            size_scale = float(arg)
+        if opt in ("-k", "--kau"):
+            use_unit = "kAU"
+            use_scale = float(arg)
         elif opt in ("-l", "--logdir"):
             indir = arg
-        elif opt in ("-i", "--interval"):
-            day_interval = int(arg)
         elif opt in ("-s", "--start"):
             startfile = datetime.strptime(arg, "%Y-%m-%d")
         elif opt in ("-e", "--end"):
             endfile = datetime.strptime(arg, "%Y-%m-%d")
         elif opt in ("-g", "--group"):
             print "   Getting usage for groups = {0}".format(arg)
-            groups = arg.split(",")
-            for group in groups:
-               bashCommand = "ldapsearch -x cn={0}".format(group)
-               ldap = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-               users = ldap.communicate()[0]
-               for line in users.splitlines():
-                  if "memberUid" in line:
-                     line = line.rstrip()
-                     tokens = line.split()
-                     userlist.append('"' + tokens[1] + '"')
-            byuser = True
+            grouplist = arg.split(",")
+            bygroup = True
         elif opt in ("-h", "--help"):
             printHelp(rootDir)
             exit(0)
@@ -201,8 +165,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 """.format(__version__))
        sys.stdout.write("Analysing data in: {0}\n".format(indir))
        print "Number of high usage codes: ", ntop
-       if uscale > 1:
-          print "Cores per node: ", uscale
+       if size_scale > 1:
+          print "Cores per node: ", size_scale
        if group is not None:
           print "Restricting usage to group: " + group
 
@@ -226,6 +190,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     matchedjobs = {}
     usergroup = {}
     jobframe_proto = []
+    tot_nodelist = []
+    code_nodelist = {}
+    for code in codes:
+       name = code.name
+       code_nodelist[name] = []
+    code_nodelist['Other'] = []
 
     #=======================================================
     # Loop over all log files found in the specified path
@@ -260,16 +230,18 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
              if re.match("__END", line) is not None:
                  continue
 
-
              # Extract the useful information from the log
              line = line.rstrip()
              tokens = line.split()
 
              if len(tokens) < 8:
                 continue
+     
+             keepline = True
+
              jobid = tokens[0]
              user = tokens[2]
-             nodes = int(tokens[4])
+             nodes = int(tokens[4]) 
              exename = tokens[7]
 
              # Assign a project based on the username
@@ -282,6 +254,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                 groups = getgroup.communicate()[0]
                 project = groups.split()[0]
                 usergroup[user] = project
+             if bygroup:
+                if project not in grouplist:
+                   keepline = False
 
              # Try to match the code
              codename = "Other"
@@ -301,20 +276,27 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                         'Jobs': 1,
                         'Nh': nodes}
 
-             totnh += nodes
+             if keepline:
+                totnh += nodes
 
-             # Test if we already have this job
-             jobidx = 0
-             if jobid in matchedjobs:
-                # Yes, get the index and increment the node hours
-                jobidx = matchedjobs[jobid]
-                jobframe_proto[jobidx]['Nh'] += nodes
-             else:
-                # No, set a new index and append to the proto frame
-                matchedjobs[jobid] = totjobs
-                jobidx = totjobs
-                totjobs += 1
-                jobframe_proto.append(jobdict)
+                # This is so we can compute statistics weighted by Nh
+                nodelist = nodes * [nodes]
+                tot_nodelist.extend(nodelist)
+                code_nodelist[codename].extend(nodelist)
+
+                # Test if we already have this job
+                jobidx = 0
+                if jobid in matchedjobs:
+                    # Yes, get the index and increment the node hours
+                    jobidx = matchedjobs[jobid]
+                    jobframe_proto[jobidx]['Nh'] += nodes
+                else:
+                    # No, set a new index and append to the proto frame
+                    matchedjobs[jobid] = totjobs
+                    jobidx = totjobs
+                    totjobs += 1
+                    jobframe_proto.append(jobdict)
+
   
           # End of loop over logfile lines
           
@@ -323,25 +305,90 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
     # End of loop over logfiles
 
-    print "Totals = ", totjobs, totnh
+    totuse = totnh * use_scale
 
     jobframe = pd.DataFrame(jobframe_proto)
 
+    tot_series = pd.Series(tot_nodelist)
+    tot_series = tot_series.multiply(size_scale)
+    tot_series.hist(bins=100)
+    plt.savefig("size_hist.png")
+    plt.clf()
+
+    # Bar chart of codes
+    codesum = jobframe.groupby('Code').agg(np.sum).sort('Nh')
+    codesum = codesum.multiply(use_scale)
+    codesum.plot(kind='barh', y='Nh', legend=False)
+    plt.xlabel(use_unit)
+    plt.savefig("codes_bar.png")
+    plt.clf()
+
     users = jobframe.User.ravel()
-    nusers = len(pd.unique(users))
+    totusers = len(pd.unique(users))
+ 
+    print "Total users = ", totusers
 
-    for code in codes:
-       name = code.name
-       print name
-       codeframe = jobframe.loc[jobframe['Code'] == name]
-       if len(codeframe.index) > 0:
-          print codeframe.Nodes.quantile()
-       else:
-          print "No jobs"
+    codeplot = []
+    codelabels = []
+    for name in reversed(codesum.index):
+       if name == "Other":
+          continue
+       # Rescale sizes by factor
+       code_nodelist[name][:] = [x*size_scale for x in code_nodelist[name]]
+       codeseries = pd.Series(code_nodelist[name])
+       if len(codeseries.index) > 0:
+          usage = codesum.loc[name]['Nh']
+          pusage = 100.0 * usage / totuse
+          # Need to divide by use_scale as we multiplied by it earlier
+          jobs = codesum.loc[name]['Jobs'] / use_scale
+          pjobs = 100.0 * jobs / totjobs
+          min = codeseries.min()
+          median = codeseries.quantile()
+          max = codeseries.max()
+          mean = codeseries.mean()
+          users = jobframe.loc[jobframe['Code'] == name].User.ravel()
+          nusers = len(pd.unique(users))
+          print "{0:18} {1:10.0f} {2:6.2f}% {3:10.0f} {4:6.2f}% {5:9.1f} {6:9.1f} {7:9.1f} {8:9.2f} {9:4d}".format(name, usage, pusage, jobs, pjobs, min, median, max, mean, nusers)
 
-#    w = jobframe['Nh'].tolist()
-#    myhist = jobframe.hist(bins=50,column="Nodes", weights=w)
-#    plt.savefig("t.png")
+          # Lists for boxplots
+          codeplot.insert(0, code_nodelist[name])
+          codelabels.insert(0, name)
+
+    # Rescale sizes by factor
+    code_nodelist['Other'][:] = [x*size_scale for x in code_nodelist['Other']]
+    codeseries = pd.Series(code_nodelist[name])
+    if len(codeseries.index) > 0:
+       usage = codesum.loc['Other']['Nh']
+       pusage = 100.0 * usage / totuse
+       # Need to divide by use_scale as we multiplied by it earlier
+       jobs = codesum.loc['Other']['Jobs'] / use_scale
+       pjobs = 100.0 * jobs / totjobs
+       min = codeseries.min()
+       median = codeseries.quantile()
+       max = codeseries.max()
+       mean = codeseries.mean()
+       users = jobframe.loc[jobframe['Code'] == 'Other'].User.ravel()
+       nusers = len(pd.unique(users))
+       print "{0:18} {1:10.0f} {2:6.2f}% {3:10.0f} {4:6.2f}% {5:9.1f} {6:9.1f} {7:9.1f} {8:9.2f} {9:4d}".format('Other', usage, pusage, jobs, pjobs, min, median, max, mean, nusers)
+    usage = totuse
+    pusage = 100.0 * usage / totuse
+    # Need to divide by use_scale as we multiplied by it earlier
+    jobs = totjobs
+    pjobs = 100.0 * jobs / totjobs
+    min = tot_series.min()
+    median = tot_series.quantile()
+    max = tot_series.max()
+    mean = tot_series.mean()
+    nusers = totusers
+    print "{0:18} {1:10.0f} {2:6.2f}% {3:10.0f} {4:6.2f}% {5:9.1f} {6:9.1f} {7:9.1f} {8:9.2f} {9:4d}".format('Total', usage, pusage, jobs, pjobs, min, median, max, mean, nusers)
+    codeplot.insert(0, tot_series)
+    codelabels.insert(0, 'Overall')
+
+    # Boxplots of codes
+    plt.boxplot(codeplot, notch=0, sym="", showmeans=True, vert=False, whis=1.5, labels=codelabels)
+    plt.xlabel("Size / " + size_unit)
+    plt.savefig("codes_box.png")
+    plt.clf()
 
     sys.exit(0)
 
@@ -356,7 +403,7 @@ def printHelp(rootDir):
 
 USAGE
 
-code_usage [options]
+code_analysis [options]
 
 OPTIONS
 
@@ -372,39 +419,6 @@ OPTIONS
 -e,--end    yyyy-mm-dd      End date for analysis (default is end of data in logfiles) 
 
 -g,--group  <group1>,<group2> Restrict analysis to specified groups (e.g. n01,n02)
-
--b,--bins   <filename>      Specify the histogram bins for binning the data as 
-                            a function of job size. The ASCII file specified should
-                            contain two lines: the fist line is a space separated 
-                            list of the upper limits of the bins (in nodes), the
-                            second line is a space separted list of the labels for
-                            the bins. The two lines must contain the same number
-                            of items. For example:
-
-                            512 4920
-                            Small Large
-
-                            If this option is not specified then the default binning
-                            will be used. This is equivalent to a file with:
-  
-                            4, 64, 256, 512, 4920
-                            Small Medium Large V.Large Huge
-
--i,--interval <days>        Interval at which to accumulate data for time series.
-                            Deafult is 14 (2 weeks).
-
--q,--quiet                  Do not produce any text output to terminal
-
---top <number>              Number of top codes to produce graphs for. Default is 10
-
---noplot                    Do not produce graphs
-
---html                      Write html version of code usage table
-
---csv                       Write CSV files corresponding to all output tables
-
---thresh <number>           Usage fraction above which unknown codes found in analysis 
-                            should be printed. Default is 0.005 (0.5% of total usage).
 
 --help                      Show this help.
 """
