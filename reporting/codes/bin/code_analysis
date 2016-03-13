@@ -65,24 +65,12 @@ def main(argv):
     rootDir = os.environ['ARCHER_MON_BASEDIR']
     # Where to place the output files (use env variable or current directory)
     outputDir = os.environ.get('ARCHER_MON_OUTDIR', '.')
-    d3Dir = outputDir + "/usage"
-    htmlDir = outputDir + "/usage"
     outDir = os.environ['PWD']
-    # Default size bins, sizes should be in nodes
-    sizes = [4, 64, 256, 512, 4920]
     size_labels = ["Small", "Medium", "Large", "V. Large", "Huge"]
-    # Default usage fraction threshold for reporting unknown codes
-    thresh = 0.005
-    # Default interval for timeline frequency in days
-    day_interval = 14
-    # Number of "top" codes to produce graphical analysis for
-    ntop = 10
-    # Default scaling factor for usage
-    scaleuse = 1.0
     # Default base unit
     size_unit = "Nodes"
     size_scale = 1.0
-    use_unit = "Nh"
+    use_unit = "Node Hours"
     use_scale = 1.0
     # Should we print HTML table of top codes?
     html = False
@@ -164,7 +152,6 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 ===========================================================================
 """.format(__version__))
        sys.stdout.write("Analysing data in: {0}\n".format(indir))
-       print "Number of high usage codes: ", ntop
        if size_scale > 1:
           print "Cores per node: ", size_scale
        if group is not None:
@@ -195,7 +182,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     for code in codes:
        name = code.name
        code_nodelist[name] = []
-    code_nodelist['Other'] = []
+    code_nodelist['Unidentified'] = []
 
     #=======================================================
     # Loop over all log files found in the specified path
@@ -252,14 +239,19 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                 bashCommand = "id -Gn {0}".format(user)
                 getgroup = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
                 groups = getgroup.communicate()[0]
-                project = groups.split()[0]
-                usergroup[user] = project
+                if groups:
+                   project = groups.split()[0]
+                   usergroup[user] = project
+                else:
+                   project = 'Unknown'
+                   usergroup[user] = project
+          
              if bygroup:
                 if project not in grouplist:
                    keepline = False
 
              # Try to match the code
-             codename = "Other"
+             codename = "Unidentified"
              for code in codes:
                 name = code.name
                 # Test if this one of the known codes
@@ -309,29 +301,38 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
     jobframe = pd.DataFrame(jobframe_proto)
 
+    # Set the figure size (in inches)
+
     tot_series = pd.Series(tot_nodelist)
     tot_series = tot_series.multiply(size_scale)
-    tot_series.hist(bins=100)
-    plt.savefig("size_hist.png")
+    tot_series.hist(bins=100, facecolor='red')
+    plt.xlabel('Job Size / ' + size_unit)
+    plt.ylabel('Count')
+    plt.savefig("size_hist.png", dpi=300)
     plt.clf()
 
-    # Bar chart of codes
+    # Get the summarised usage in cores
     codesum = jobframe.groupby('Code').agg(np.sum).sort('Nh')
     codesum = codesum.multiply(use_scale)
-    codesum.plot(kind='barh', y='Nh', legend=False)
-    plt.xlabel(use_unit)
-    plt.savefig("codes_bar.png")
+
+    # Bar chart of codes
+    codesum.plot(kind='barh', y='Nh', legend=False, facecolor='red')
+    plt.ylabel('')
+    plt.xlabel('Usage / ' + use_unit)
+    plt.savefig("codes_bar.png", dpi=300)
     plt.clf()
 
+    # Get the total number of unique users
     users = jobframe.User.ravel()
     totusers = len(pd.unique(users))
  
-    print "Total users = ", totusers
 
+    # Get statistics for each code, unidentified and overall
     codeplot = []
     codelabels = []
+    statsHeader()
     for name in reversed(codesum.index):
-       if name == "Other":
+       if name == "Unidentified":
           continue
        if len(code_nodelist[name]) > 0:
           users = jobframe.loc[jobframe['Code'] == name].User.ravel()
@@ -339,25 +340,32 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           statsReport(name, codesum.loc[name]['Nh'], codesum.loc[name]['Jobs'] / use_scale, 
                       totuse, totjobs, nusers, [x*size_scale for x in code_nodelist[name]])
           # Lists for boxplots
-          codeplot.insert(0, code_nodelist[name])
+          codeplot.insert(0, [x*size_scale for x in code_nodelist[name]])
           codelabels.insert(0, name)
-    if len(code_nodelist['Other']) > 0:
-       users = jobframe.loc[jobframe['Code'] == 'Other'].User.ravel()
+    if len(code_nodelist['Unidentified']) > 0:
+       users = jobframe.loc[jobframe['Code'] == 'Unidentified'].User.ravel()
        nusers = len(pd.unique(users))
-       statsReport("Unidentified", codesum.loc['Other']['Nh'], codesum.loc['Other']['Jobs'] / use_scale, 
-                   totuse, totjobs, nusers, [x*size_scale for x in code_nodelist['Other']])
+       statsReport("Unidentified", codesum.loc['Unidentified']['Nh'], codesum.loc['Unidentified']['Jobs'] / use_scale, 
+                   totuse, totjobs, nusers, [x*size_scale for x in code_nodelist['Unidentified']])
+       # Add to boxplot list
+       codeplot.insert(0, [x*size_scale for x in code_nodelist['Unidentified']])
+       codelabels.insert(0, 'Unidentified')
     statsReport("Overall", totuse, totjobs, totuse, totjobs, totusers, tot_nodelist)
+    # Add to boxplot list
     codeplot.insert(0, tot_series)
     codelabels.insert(0, 'Overall')
 
     # Boxplots of codes
     plt.boxplot(codeplot, notch=0, sym="", showmeans=True, vert=False, whis=1.5, labels=codelabels)
-    plt.xlabel("Size / " + size_unit)
-    plt.savefig("codes_box.png")
+    plt.xlabel("Job Size / " + size_unit)
+    plt.savefig("codes_box.png", dpi=300)
     plt.clf()
 
     sys.exit(0)
 
+#=============================================================
+# Small function to report on stats based on list of job sizes
+#=============================================================
 def statsReport(label, use, jobs, totuse, totjobs, nusers, datalist):
     dataseries = pd.Series(datalist)
     pusage = 100.0 * use / totuse
@@ -366,9 +374,19 @@ def statsReport(label, use, jobs, totuse, totjobs, nusers, datalist):
     median = dataseries.quantile()
     max = dataseries.max()
     mean = dataseries.mean()
-    print "{0:18} {1:10.0f} {2:6.2f}% {3:10.0f} {4:6.2f}% {5:9.1f} {6:9.1f} {7:9.1f} {8:9.2f} {9:4d}".format(label, use, pusage, jobs, pjobs, min, median, max, mean, nusers)
+    print '{},{:.2f}%,{:.2f}%,{:.0f},{:.0f},{:.0f},{:.2f},{}'.format(label, pusage, pjobs, min, median, max, mean, nusers)
+
+#=============================================================
+# Print header line for stats
+#=============================================================
+def statsHeader():
+    print 'Application,% Use,% Jobs,Min.,Median,Max.,Mean,Users'
 
 
+
+#=======================================================
+# Function to print help
+#=======================================================
 def printHelp(rootDir):
     """Print help for the tool.
            
