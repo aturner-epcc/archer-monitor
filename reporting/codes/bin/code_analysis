@@ -299,16 +299,45 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
     totuse = totnh * use_scale
 
+    # The main data frame describing the jobs
     jobframe = pd.DataFrame(jobframe_proto)
 
-    # Set the figure size (in inches)
-
+    # Series representing the total job size statistics
     tot_series = pd.Series(tot_nodelist)
     tot_series = tot_series.multiply(size_scale)
-    tot_series.hist(bins=100, facecolor='red')
+
+    # Get total node hours by job size
+    size_bins = [4, 64, 256, 512, 4920]
+    size_labels = []
+    for i, size in enumerate(size_bins):
+       label = None
+       if i == 0:
+          end = size_bins[i] * size_scale
+          label = '({:.0f},{:.0f}]'.format(0, end)
+       else:
+          start = size_bins[i-1] * size_scale
+          end = size_bins[i] * size_scale
+          label = '({:.0f},{:.0f}]'.format(start, end)
+       size_labels.append(label)
+    # Need this to stop the labels being shifted on the plot
+    size_labels.insert(0, '')
+    size_hist = len(size_bins) * [0]
+    sizesum = jobframe.groupby('Nodes').agg(np.sum)
+    for size in sizesum.index:
+       for i, e in enumerate(size_bins):
+          if size <= e:
+             if e in size_hist:
+                size_hist[i] += sizesum.loc[size, 'Nh'] * use_scale
+             else:
+                size_hist[i] = sizesum.loc[size, 'Nh'] * use_scale
+             break
+
+    fig, ax = plt.subplots()
+    plt.bar(range(len(size_hist)), size_hist, facecolor='red', align='center')
+    ax.set_xticklabels(size_labels)
     plt.xlabel('Job Size / ' + size_unit)
-    plt.ylabel('Count')
-    plt.savefig("size_hist.png", dpi=300)
+    plt.ylabel('Usage / ' + use_unit)
+    plt.savefig("size_bar.png", dpi=300)
     plt.clf()
 
     # Get the summarised usage in cores
