@@ -297,14 +297,13 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
     # End of loop over logfiles
 
+    # Compute the major statistics
     totuse = totnh * use_scale
 
     # The main data frame describing the jobs
     jobframe = pd.DataFrame(jobframe_proto)
 
-    # Series representing the total job size statistics
-    tot_series = pd.Series(tot_nodelist)
-    tot_series = tot_series.multiply(size_scale)
+    print jobframe.loc[jobframe['Code'] == 'Unified Model']
 
     # Get total node hours by job size
     size_bins = [4, 64, 256, 512, 4920]
@@ -322,16 +321,20 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Need this to stop the labels being shifted on the plot
     size_labels.insert(0, '')
     size_hist = len(size_bins) * [0]
+    job_hist = len(size_bins) * [0]
     sizesum = jobframe.groupby('Nodes').agg(np.sum)
     for size in sizesum.index:
        for i, e in enumerate(size_bins):
           if size <= e:
              if e in size_hist:
                 size_hist[i] += sizesum.loc[size, 'Nh'] * use_scale
+                job_hist[i] += sizesum.loc[size, 'Jobs']
              else:
                 size_hist[i] = sizesum.loc[size, 'Nh'] * use_scale
+                job_hist[i] = sizesum.loc[size, 'Jobs']
              break
 
+    # Node hours
     fig, ax = plt.subplots()
     plt.bar(range(len(size_hist)), size_hist, facecolor='red', align='center')
     ax.set_xticklabels(size_labels)
@@ -339,13 +342,32 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     plt.ylabel('Usage / ' + use_unit)
     plt.savefig("size_bar.png", dpi=300)
     plt.clf()
+    # Jobs
+    fig, ax = plt.subplots()
+    plt.bar(range(len(job_hist)), job_hist, facecolor='red', align='center')
+    ax.set_xticklabels(size_labels)
+    plt.xlabel('Job Size / ' + size_unit)
+    plt.ylabel('Jobs')
+    plt.savefig("jobs_bar.png", dpi=300)
+    plt.clf()
 
     # Get the summarised usage in cores
     codesum = jobframe.groupby('Code').agg(np.sum).sort('Nh')
     codesum = codesum.multiply(use_scale)
 
+    # Extract the unidentified data and the top usage codes
+    knowncodes = codesum.drop(codesum[codesum.index == 'Unidentified'].index)
+    unknowncodes = codesum.drop(codesum[codesum.index != 'Unidentified'].index)
+    topcode = knowncodes.loc[knowncodes['Nh'] >= 0.01*totuse]
+    lowcode = knowncodes.loc[knowncodes['Nh'] < 0.01*totuse]
+
+    # Add unidentified and other code details and resort
+    topcode.loc['Other'] = lowcode.sum()
+    topcode = topcode.append(unknowncodes)
+    topcode = topcode.sort('Nh')
+
     # Bar chart of codes
-    codesum.plot(kind='barh', y='Nh', legend=False, facecolor='red')
+    topcode.plot(kind='barh', y='Nh', legend=False, facecolor='red')
     plt.ylabel('')
     plt.xlabel('Usage / ' + use_unit)
     plt.savefig("codes_bar.png", dpi=300)
@@ -355,13 +377,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     users = jobframe.User.ravel()
     totusers = len(pd.unique(users))
  
-
     # Get statistics for each code, unidentified and overall
     codeplot = []
     codelabels = []
     statsHeader()
-    for name in reversed(codesum.index):
-       if name == "Unidentified":
+    for name in reversed(topcode.index):
+       if name == "Unidentified" or name == "Other":
           continue
        if len(code_nodelist[name]) > 0:
           users = jobframe.loc[jobframe['Code'] == name].User.ravel()
@@ -379,7 +400,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        # Add to boxplot list
        codeplot.insert(0, [x*size_scale for x in code_nodelist['Unidentified']])
        codelabels.insert(0, 'Unidentified')
-    statsReport("Overall", totuse, totjobs, totuse, totjobs, totusers, tot_nodelist)
+
+
+    # Series representing the total job size statistics
+    tot_series = pd.Series(tot_nodelist)
+    tot_series = tot_series.multiply(size_scale)
+    statsReport("Overall", totuse, totjobs, totuse, totjobs, totusers, [x*size_scale for x in tot_nodelist])
     # Add to boxplot list
     codeplot.insert(0, tot_series)
     codelabels.insert(0, 'Overall')
