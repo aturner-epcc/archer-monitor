@@ -19,17 +19,17 @@
 #
 
 [code info]
-name: Unified Model
-regexp: ^[a-z]{5}\.exe|um_atmos
+name: OSIRIS
+regexp: osiris
 
 [metadata]
 primary language: Fortran
 version:          95
 
-academic license: Fee Payment
-commercial license: Fee Payment
+academic license: Academic Free
+commercial license: None
 
-code type: Structured Grid
+code type: Particle in Cell
 
-research area: Climate/Ocean Modelling
+research area: Plasma Science
 parallel-model: MPI
