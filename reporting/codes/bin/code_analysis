@@ -101,8 +101,8 @@ def main(argv):
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "l:s:e:c:g:k:h", 
-                 ["logdir=", "start=", "end=", "cores=", "group=", "kau=", "help"])
+        opts, args = getopt.getopt(argv, "l:s:e:c:g:k:uh", 
+                 ["logdir=", "start=", "end=", "cores=", "group=", "kau=", "users", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
@@ -113,7 +113,7 @@ def main(argv):
     d3csv = False
     png = True
     text = True
-    userlist = []
+    listusers = False
     group = None
     startfile = datetime.utcfromtimestamp(0)
     endfile = datetime.now()
@@ -135,6 +135,8 @@ def main(argv):
             print "   Getting usage for groups = {0}".format(arg)
             grouplist = arg.split(",")
             bygroup = True
+        elif opt in ("-u", "--users"):
+            listusers = True
         elif opt in ("-h", "--help"):
             printHelp(rootDir)
             exit(0)
@@ -415,6 +417,43 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     plt.xlabel("Job Size / " + size_unit)
     plt.savefig("codes_box.png", dpi=300)
     plt.clf()
+
+    # List users associated with each application
+    if listusers:
+       userfile = open('userlist.md', 'w')
+       # Known applications
+       userfile.write('\n# User List: Known Applications #\n\n')
+       for name in reversed(codesum.index):
+          if name == 'Unidentified':
+             continue
+          users = pd.unique(jobframe.loc[jobframe['Code'] == name].User.ravel())
+          userfile.write('\n## {} ##\n\n'.format(name))
+          puse = 100.0 * codesum.loc[name]['Nh'] / totuse
+          userfile.write('Usage {:.0f} {} ({:.2f}%)\n\n'.format(codesum.loc[name]['Nh'], use_unit, puse))
+          for user in users:
+             bashCommand = "finger {0}".format(user)
+             getperson = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+             person = getperson.communicate()[0].split(':')[2].split('\n')[0]
+             userfile.write('* {}: {}\n'.format(user, person))
+
+       # Unknown applications
+       unknowncodes =  jobframe.loc[jobframe['Code'] == 'Unidentified']
+       codesum = unknowncodes.groupby('Exe').agg(np.sum).sort('Nh')
+       userfile.write('\n# User List: Unknown Applications #\n\n')
+       for name in reversed(codesum.index):
+          if codesum.loc[name]['Nh'] >= 0.01*totuse:
+             userfile.write('\n## {} ##\n\n'.format(name))
+             puse = 100.0 * codesum.loc[name]['Nh'] / totuse
+             userfile.write('Usage {:d} {} ({:.2f}%)\n'.format(codesum.loc[name]['Nh'], use_unit, puse))
+             users = pd.unique(jobframe.loc[jobframe['Exe'] == name].User.ravel())
+             for user in users:
+                bashCommand = "finger {0}".format(user)
+                getperson = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+                person = getperson.communicate()[0].split(':')[2].split('\n')[0]
+                userfile.write('* {}: {}\n'.format(user, person))
+       userfile.close()
+
+    print 
 
     sys.exit(0)
 
