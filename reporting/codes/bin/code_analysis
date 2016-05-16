@@ -32,7 +32,7 @@
 # For help see function at bottom of source
 #
 __author__ = 'Andrew Turner, EPCC, The University of Edinburgh'
-__version__ = '0.1'
+__version__ = '0.3'
 
 # Import the required modules
 from code_def import CodeDef
@@ -55,6 +55,7 @@ import ConfigParser
 import grp
 import re
 import time
+import prettytable
 
 def main(argv):
 
@@ -72,9 +73,9 @@ def main(argv):
     size_scale = 1.0
     use_unit = "Node Hours"
     use_scale = 1.0
-    # Should we print HTML table of top codes?
-    html = False
-    # Default logfile directory on ARCHER
+    # Default prefix for output file names
+    prefix = "app"
+    # Default log location
     DEFAULT_LOGFILE_DIR = "/home/z01/z01/archstat/archer-monitor/logs/applications"
 
     #=======================================================
@@ -101,8 +102,9 @@ def main(argv):
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "l:s:e:c:g:k:uh", 
-                 ["logdir=", "start=", "end=", "cores=", "group=", "kau=", "users", "help"])
+        opts, args = getopt.getopt(argv, "l:s:e:c:g:k:p:vuh", 
+                 ["logdir=", "start=", "end=", "cores=", "group=", "kau=", "prefix=", 
+                  "csv", "users", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
@@ -110,23 +112,19 @@ def main(argv):
     bygroup = False
     grouplist = None
     csv = False
-    d3csv = False
-    png = True
-    text = True
     listusers = False
-    group = None
     startfile = datetime.utcfromtimestamp(0)
     endfile = datetime.now()
     indir = DEFAULT_LOGFILE_DIR
     for opt, arg in opts:
         if opt in ("-c", "--cores"):
             size_unit = "Cores"
-            size_scale = float(arg)
+            size_scale = float(arg.strip())
         if opt in ("-k", "--kau"):
             use_unit = "kAU"
-            use_scale = float(arg)
+            use_scale = float(arg.strip())
         elif opt in ("-l", "--logdir"):
-            indir = arg
+            indir = arg.strip()
         elif opt in ("-s", "--start"):
             startfile = datetime.strptime(arg, "%Y-%m-%d")
         elif opt in ("-e", "--end"):
@@ -135,15 +133,17 @@ def main(argv):
             print "   Getting usage for groups = {0}".format(arg)
             grouplist = arg.split(",")
             bygroup = True
+        elif opt in ("-p", "--prefix"):
+            prefix = arg.strip()
         elif opt in ("-u", "--users"):
             listusers = True
+        elif opt in ("-v", "--csv"):
+            csv = True
         elif opt in ("-h", "--help"):
             printHelp(rootDir)
             exit(0)
 
-
-    if text:
-       sys.stderr.write("""
+    sys.stderr.write("""
 ===========================================================================
 code_analysis {0}
 ---------------------------------------------------------------------------
@@ -153,11 +153,11 @@ you are welcome to redistribute it under certain conditions. See the GNU
 General Public License for more details: <http://www.gnu.org/licenses/>.
 ===========================================================================
 """.format(__version__))
-       sys.stdout.write("Analysing data in: {0}\n".format(indir))
-       if size_scale > 1:
-          print "Cores per node: ", size_scale
-       if group is not None:
-          print "Restricting usage to group: " + group
+    sys.stdout.write("Analysing data in: {0}\n".format(indir))
+    if size_scale > 1:
+       print "Cores per node: ", size_scale
+    if grouplist is not None:
+       print "Restricting usage to group(s): " + grouplist
 
     # Check the directory exists
     if not os.path.isdir(indir):
@@ -305,8 +305,6 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # The main data frame describing the jobs
     jobframe = pd.DataFrame(jobframe_proto)
 
-    print jobframe.loc[jobframe['Code'] == 'Unified Model']
-
     # Get total node hours by job size
     size_bins = [4, 64, 256, 512, 4920]
     size_labels = []
@@ -342,7 +340,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     ax.set_xticklabels(size_labels)
     plt.xlabel('Job Size / ' + size_unit)
     plt.ylabel('Usage / ' + use_unit)
-    plt.savefig("size_bar.png", dpi=300)
+    plt.savefig(prefix + "_usebysize.png", dpi=300)
     plt.clf()
     # Jobs
     fig, ax = plt.subplots()
@@ -350,12 +348,13 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     ax.set_xticklabels(size_labels)
     plt.xlabel('Job Size / ' + size_unit)
     plt.ylabel('Jobs')
-    plt.savefig("jobs_bar.png", dpi=300)
+    plt.savefig(prefix + "_jobsbysize.png", dpi=300)
     plt.clf()
 
     # Get the summarised usage in cores
     codesum = jobframe.groupby('Code').agg(np.sum).sort('Nh')
     codesum = codesum.multiply(use_scale)
+    usersum = jobframe.groupby('User').agg(np.sum).sort('Nh')
 
     # Extract the unidentified data and the top usage codes
     knowncodes = codesum.drop(codesum[codesum.index == 'Unidentified'].index)
@@ -363,7 +362,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     topcode = knowncodes.loc[knowncodes['Nh'] >= 0.01*totuse]
     lowcode = knowncodes.loc[knowncodes['Nh'] < 0.01*totuse]
 
-    # Add unidentified and other code details and resort
+    # Add unidentified and other code details and re-sort
     topcode.loc['Other'] = lowcode.sum()
     topcode = topcode.append(unknowncodes)
     topcode = topcode.sort('Nh')
@@ -372,7 +371,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     topcode.plot(kind='barh', y='Nh', legend=False, facecolor='red')
     plt.ylabel('')
     plt.xlabel('Usage / ' + use_unit)
-    plt.savefig("codes_bar.png", dpi=300)
+    plt.savefig(prefix + "_bar_usage.png", dpi=300)
     plt.clf()
 
     # Get the total number of unique users
@@ -382,32 +381,53 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Get statistics for each code, unidentified and overall
     codeplot = []
     codelabels = []
-    statsHeader()
-    for name in reversed(topcode.index):
+    csvfile = None
+    statstable = None
+    if csv: 
+       csvfile = open(prefix + "_stats.csv", "w")
+       st = statsHeaderCSV(csvfile)
+       statstable = prettytable.PrettyTable(st)
+    for name in reversed(knowncodes.index):
        if name == "Unidentified" or name == "Other":
           continue
        if len(code_nodelist[name]) > 0:
           users = jobframe.loc[jobframe['Code'] == name].User.ravel()
           nusers = len(pd.unique(users))
-          statsReport(name, codesum.loc[name]['Nh'], codesum.loc[name]['Jobs'] / use_scale, 
-                      totuse, totjobs, nusers, [x*size_scale for x in code_nodelist[name]])
+          if csv:
+             st = statsReportCSV(name, codesum.loc[name]['Nh'], codesum.loc[name]['Jobs'] / use_scale, 
+                         totuse, totjobs, nusers, [x*size_scale for x in code_nodelist[name]], csvfile)
+             statstable.add_row(st)
           # Lists for boxplots
           codeplot.insert(0, [x*size_scale for x in code_nodelist[name]])
           codelabels.insert(0, name)
     if len(code_nodelist['Unidentified']) > 0:
        users = jobframe.loc[jobframe['Code'] == 'Unidentified'].User.ravel()
        nusers = len(pd.unique(users))
-       statsReport("Unidentified", codesum.loc['Unidentified']['Nh'], codesum.loc['Unidentified']['Jobs'] / use_scale, 
-                   totuse, totjobs, nusers, [x*size_scale for x in code_nodelist['Unidentified']])
+       if csv:
+          st = statsReportCSV("Unidentified", codesum.loc['Unidentified']['Nh'],
+                      codesum.loc['Unidentified']['Jobs'] / use_scale, 
+                      totuse, totjobs, nusers, [x*size_scale for x in code_nodelist['Unidentified']],
+                      csvfile)
+          statstable.add_row(st)
        # Add to boxplot list
        codeplot.insert(0, [x*size_scale for x in code_nodelist['Unidentified']])
        codelabels.insert(0, 'Unidentified')
 
-
     # Series representing the total job size statistics
     tot_series = pd.Series(tot_nodelist)
     tot_series = tot_series.multiply(size_scale)
-    statsReport("Overall", totuse, totjobs, totuse, totjobs, totusers, [x*size_scale for x in tot_nodelist])
+    if csv:
+       st = statsReportCSV("Overall", totuse, totjobs, totuse, totjobs, totusers, 
+                   [x*size_scale for x in tot_nodelist], csvfile)
+       statstable.add_row(st)
+       statstable.float_format = ".0"
+       statstable.float_format["% Use"] = ".2"
+       statstable.float_format["% Jobs"] = ".2"
+       statstable.float_format["Mean"] = ".2"
+       statstable.align = "r"
+       statstable.align["Application"] = "c"
+       print statstable
+       csvfile.close()
     # Add to boxplot list
     codeplot.insert(0, tot_series)
     codelabels.insert(0, 'Overall')
@@ -415,12 +435,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Boxplots of codes
     plt.boxplot(codeplot, notch=0, sym="", showmeans=True, vert=False, whis=1.5, labels=codelabels)
     plt.xlabel("Job Size / " + size_unit)
-    plt.savefig("codes_box.png", dpi=300)
+    plt.savefig(prefix + "_sizebycode.png", dpi=300)
     plt.clf()
 
     # List users associated with each application
     if listusers:
-       userfile = open('userlist.md', 'w')
+       userfile = open(prefix + '_userlist.md', 'w')
        # Known applications
        userfile.write('\n# User List: Known Applications #\n\n')
        for name in reversed(codesum.index):
@@ -460,23 +480,26 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 #=============================================================
 # Small function to report on stats based on list of job sizes
 #=============================================================
-def statsReport(label, use, jobs, totuse, totjobs, nusers, datalist):
+def statsReportCSV(label, use, jobs, totuse, totjobs, nusers, datalist, csvfile):
     dataseries = pd.Series(datalist)
     pusage = 100.0 * use / totuse
     pjobs = 100.0 * jobs / totjobs
     min = dataseries.min()
+    q1 = dataseries.quantile(0.25)
     median = dataseries.quantile()
+    q3 = dataseries.quantile(0.75)
     max = dataseries.max()
     mean = dataseries.mean()
-    print '{},{:.2f}%,{:.2f}%,{:.0f},{:.0f},{:.0f},{:.2f},{}'.format(label, pusage, pjobs, min, median, max, mean, nusers)
+    csvfile.write('"{}",{:.2f}%,{:.2f}%,{:.0f},{:.0f},{:.0f},{:.0f},{:.0f},{:.2f},{}\n'.format(label, 
+                   pusage, pjobs, min, q1, median, q3, max, mean, nusers))
+    return (label, pusage, pjobs, min, q1, median, q3, max, mean, nusers)
 
 #=============================================================
 # Print header line for stats
 #=============================================================
-def statsHeader():
-    print 'Application,% Use,% Jobs,Min.,Median,Max.,Mean,Users'
-
-
+def statsHeaderCSV(csvfile):
+    csvfile.write('"Application","% Use","% Jobs","Min.","Q1","Median","Q3","Max.","Mean","Users"\n')
+    return ("Application","% Use","% Jobs","Min.","Q1","Median","Q3","Max.","Mean","Users")
 
 #=======================================================
 # Function to print help
