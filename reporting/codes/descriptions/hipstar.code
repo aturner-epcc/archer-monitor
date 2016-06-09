@@ -20,7 +20,7 @@
 
 [code info]
 name: HiPSTAR
-regexp: jet_3d|c3d|jet_scalar_3d
+regexp: HiPSTAR.x|HiPSTAR_adj.x|hipstar.|jet_3d|c3d|jet_scalar_3d
 
 [metadata]
 primary language: Fortran
