@@ -732,11 +732,11 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        for name in sorted(code_nh, key=code_nh.get, reverse=True):
           sys.stdout.write("{0:>20s}".format(name))
           for size in sizes:
-             sys.stdout.write("{0:20d}".format(bcode_nh_bysize[(name, size)]))
+             sys.stdout.write("{0:20d}".format(uscale * bcode_nh_bysize[(name, size)]))
           sys.stdout.write("\n")
        sys.stdout.write("{0:>20s}".format("Unknown"))
        for size in sizes:
-          sys.stdout.write("{0:>20d}".format(bother_nh_bysize[size]))
+          sys.stdout.write("{0:>20d}".format(uscale * bother_nh_bysize[size]))
        sys.stdout.write("\n")
        lines = "{0:>20s}".format("----")
        for size in sizes:
@@ -744,7 +744,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        sys.stdout.write(lines + "\n")
        sys.stdout.write("{0:>20s}".format("Total"))
        for size in sizes:
-          sys.stdout.write("{0:>20d}".format(btot_nh_bysize[size]))
+          sys.stdout.write("{0:>20d}".format(uscale * btot_nh_bysize[size]))
        sys.stdout.write("\n")
        lines = "{0:>20s}".format("====")
        for size in sizes:
@@ -763,7 +763,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        nrow = len(btot_nh_bysize)
        data = []
        for size in sizes:
-          data.append(btot_nh_bysize[size])
+          data.append(uscale * btot_nh_bysize[size])
        pos = np.arange(nrow) - (width/2.0)
        ax.bar(pos, data, width, color='0.75', alpha=0.75)
        ax.set_xticks(np.arange(nrow))
@@ -780,7 +780,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           ax.cla()
           data = []
           for size in sizes:
-             data.append(bcode_nh_bysize[(name,size)])
+             data.append(uscale * bcode_nh_bysize[(name,size)])
           colorVal = scalarMap.to_rgba(idx)
           ax.bar(pos, data, width, color=colorVal, edgecolor=colorVal, alpha=0.75)
           idx += 1
