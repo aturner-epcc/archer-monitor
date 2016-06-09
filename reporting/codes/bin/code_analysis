@@ -254,11 +254,19 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
              # Try to match the code
              codename = "Unidentified"
+             codelang = "Unidentified"
+             codetype = "Unidentified"
+             codearea = "Unidentified"
+             codelic = "Unidentified"
              for code in codes:
                 name = code.name
                 # Test if this one of the known codes
                 if re.search(code.regexp, exename):
                    codename = name
+                   codelang = code.pri_lang
+                   codetype = code.type
+                   codearea = code.area
+                   codelic = code.aca_licence
 
              # Temporary dict for storing this line
              jobdict = {'JobID': jobid,
@@ -267,13 +275,17 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                         'Nodes': nodes,
                         'Exe': exename,
                         'Code': codename,
+                        'Language': codelang,
+                        'Type': codetype,
+                        'Area': codearea,
+                        'Licence': codelic,
                         'Jobs': 1,
                         'Nh': nodes}
 
              if keepline:
                 totnh += nodes
 
-                # This is so we can compute statistics weighted by Nh
+                # This is so we can compute statistics weighted by Nh per code
                 nodelist = nodes * [nodes]
                 tot_nodelist.extend(nodelist)
                 code_nodelist[codename].extend(nodelist)

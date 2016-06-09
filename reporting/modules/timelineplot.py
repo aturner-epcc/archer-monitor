@@ -134,6 +134,8 @@ def compute_multiple_timeline(ncol, interval, infile, scale=1.0, debug=False):
    
             for i in range(ncol):
                 timeline[i].append(scale*float(sum[i])/interval)
+                if debug:
+                  print timetuple, i, scale*float(sum[i])/interval
                 sum[i] = 0
 
             icount = 0
