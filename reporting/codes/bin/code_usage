@@ -112,6 +112,7 @@ def main(argv):
     users = ''
     code_regexp = {}
     code_users = {}
+    code_projects = {}
     code_num_users = {}
     code_nh = {}
     code_nh_bysize = {}
@@ -135,6 +136,7 @@ def main(argv):
        code_nh[name] = 0
        code_jobs[name] = 0
        code_users[name] = ''
+       code_projects[name] = ''
        code_num_users[name] = 0
 
     #=======================================================
@@ -284,6 +286,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     other_filenh = 0
     other_filenhsq = 0
     other_filejobs = 0
+    usergroup = {}
    
     startdate = None
     enddate = None
@@ -351,7 +354,22 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             user = tokens[2]
             nodes = tokens[4]
             exename = tokens[7]
-       
+
+            # Assign a project based on the username
+            project = None
+            if user in usergroup:
+               project = usergroup[user]
+            else:
+               bashCommand = "id -Gn {0}".format(user)
+               getgroup = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+               groups = getgroup.communicate()[0]
+               if groups:
+                  project = groups.split()[0]
+                  usergroup[user] = project
+               else:
+                  project = 'Unknown'
+                  usergroup[user] = project
+      
             # We may need to test if we are counting this job
             addjob = True
             if byuser:
@@ -407,6 +425,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
                      if user not in code_users[name]:
                         code_users[name] = "{0} {1}".format(code_users[name], user)
                         code_num_users[name] += 1
+                     if project not in code_projects[name]:
+                        code_projects[name] = "{0} {1}".format(code_projects[name], project)
                      code_filenh[name] += int(nodes)
                      code_filenhsq[name] += int(nodes)*int(nodes)
                      if (name, nodes) in code_nh_bysize:
@@ -1014,6 +1034,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           license = codes[codeDict[name]].aca_licence
           csvfile.write('{0:d},"{1}",{2:d},{3:d},{4:d},"{5}","{6}","{7}","{8}"\n'.format(n, name, uscale * code_nh[name], code_jobs[name], code_num_users[name], appType,lang,area,license))
        csvfile.close()
+
+    # Print projects associated with codes
+    if text:
+       sys.stdout.write("\nProjects using each code:\n")
+       for name in sorted(code_nh, key=code_nh.get, reverse=True):
+          sys.stdout.write("{0:>20s}: {1}\n".format(name, code_projects[name]))
 
     # Aggregate results on type metadata
     metaUsageTable("pri_lang", "Programming Language", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, uscale, text=text, csv=csv, png=png)
