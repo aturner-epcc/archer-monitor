@@ -1040,6 +1040,13 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        sys.stdout.write("\nProjects using each code:\n")
        for name in sorted(code_nh, key=code_nh.get, reverse=True):
           sys.stdout.write("{0:>20s}: {1}\n".format(name, code_projects[name]))
+    if csv:
+       # CSV version of table if required
+       csvfile = open("project_use.csv", "w")
+       csvfile.write('"{0}","{1}"\n'.format("Code", "Projects"))
+       for name in sorted(code_nh, key=code_nh.get, reverse=True):
+          csvfile.write('"{0}","{1}"\n'.format(name, code_projects[name]))
+       csvfile.close()
 
     # Aggregate results on type metadata
     metaUsageTable("pri_lang", "Programming Language", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, uscale, text=text, csv=csv, png=png)
