@@ -29,7 +29,7 @@ version:          95
 academic license: BSD
 commercial license: BSD
 
-code type: CFD
+code type: Computational Fluid Dynamics
 
 research area: Engineering
 parallel-model: MPI

@@ -29,7 +29,7 @@ version:
 academic license: Free
 commercial license: Fee
 
-code type: Kinetic Monte Carlo
+code type: Monte Carlo
 
 research area: Materials Science
 parallel-model: MPI

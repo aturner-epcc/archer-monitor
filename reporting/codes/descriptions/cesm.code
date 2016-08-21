@@ -29,7 +29,7 @@ version:          95
 academic license: Fee Payment
 commercial license: Fee Payment
 
-code type: Community Earth System Model
+code type: Structured Grid
 
-research area: Climate Modelling
+research area: Climate/Ocaen Modelling
 parallel-model: MPI 
