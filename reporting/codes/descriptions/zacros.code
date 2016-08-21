@@ -23,7 +23,7 @@ name: Zacros
 regexp: zacros
 
 [metadata]
-primary language: Fortan
+primary language: Fortran
 version:          
 
 academic license: Free
