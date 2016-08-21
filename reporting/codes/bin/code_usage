@@ -1100,6 +1100,8 @@ def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh,
     """
     meta_nh = {}
     meta_jobs = {}
+    tot_nh = 0
+    tot_jobs = 0
     # Accumulate data by metadata specified
     for code in codes:
        name = getattr(code, "name")
@@ -1110,6 +1112,10 @@ def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh,
        else:
           meta_nh[meta] = code_nh[name]
           meta_jobs[meta] = code_jobs[name]
+       tot_nh += code_nh[name]
+       tot_jobs += code_jobs[name]
+    tot_nh +=  other_nh
+    tot_jobs +=  other_jobs
     punit = ""
     if units == 'nodes':
        punit = "Nh"
@@ -1145,6 +1151,10 @@ def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh,
           pie_vals.append(float(meta_nh[meta]))
           pie_explode.append(0.05)
           idx += 1
+       pie_cols.append(pie_scalarMap.to_rgba(idx))
+       pie_labels.append("Unknown")
+       pie_vals.append(float(other_nh))
+       pie_explode.append(0.05)
        ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols, autopct='%1.1f%%')
        ax.axis('equal')
        fig.savefig("{0}/{1}_usage_pie.png".format(outDir, metadata))
@@ -1154,31 +1164,31 @@ def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh,
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("Code", punit, "% Time", "Jobs", "% Jobs"))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
        for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
-          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
-          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
+          nhfrac = 100 * float(meta_nh[meta])/float(tot_nh)
+          jobfrac = 100 * float(meta_jobs[meta])/float(tot_jobs)
           sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
-       nhfrac = 100 * float(other_nh)/float(totnh)
-       jobfrac = 100 * float(other_jobs)/float(totjobs)
+       nhfrac = 100 * float(other_nh)/float(tot_nh)
+       jobfrac = 100 * float(other_jobs)/float(tot_jobs)
        sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("----", "----------", "------", "----", "------"))
-       nhfrac = 100 * float(totnh)/float(totnh)
-       jobfrac = 100 * float(totjobs)/float(totjobs)
-       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
+       nhfrac = 100 * float(tot_nh)/float(tot_nh)
+       jobfrac = 100 * float(tot_jobs)/float(tot_jobs)
+       sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}\n".format("Total", uscale * tot_nh, nhfrac, tot_jobs, jobfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}\n".format("====", "==========", "======", "====", "======"))
     # Print usage to CSV file
     if csv:
        csvfile = open("{0}/{1}_usage.csv".format(outDir, metadata), "w")
        csvfile.write('"{0:s}","{1:s}","{2:s}","{3:s}","{4:s}"\n'.format("Code", punit, "% Time", "Jobs", "% Jobs"))
        for meta in sorted(meta_nh, key=meta_nh.get, reverse=True):
-          nhfrac = 100 * float(meta_nh[meta])/float(totnh)
-          jobfrac = 100 * float(meta_jobs[meta])/float(totjobs)
+          nhfrac = 100 * float(meta_nh[meta])/float(tot_nh)
+          jobfrac = 100 * float(meta_jobs[meta])/float(tot_jobs)
           csvfile.write('"{0:s}",{1:d},{2:.2f},{3:d},{4:.2f}\n'.format(meta, uscale * meta_nh[meta], nhfrac, meta_jobs[meta], jobfrac))
-       nhfrac = 100 * float(other_nh)/float(totnh)
-       jobfrac = 100 * float(other_jobs)/float(totjobs)
+       nhfrac = 100 * float(other_nh)/float(tot_nh)
+       jobfrac = 100 * float(other_jobs)/float(tot_jobs)
        csvfile.write('"{0:s}",{1:d},{2:.2f},{3:d},{4:.2f}\n'.format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac))
-       nhfrac = 100 * float(totnh)/float(totnh)
-       jobfrac = 100 * float(totjobs)/float(totjobs)
-       csvfile.write('"{0:s}",{1:d},{2:.2f},{3:d},{4:.2f}\n'.format("Total", uscale * totnh, nhfrac, totjobs, jobfrac))
+       nhfrac = 100 * float(tot_nh)/float(tot_nh)
+       jobfrac = 100 * float(tot_jobs)/float(tot_jobs)
+       csvfile.write('"{0:s}",{1:d},{2:.2f},{3:d},{4:.2f}\n'.format("Total", uscale * tot_nh, nhfrac, tot_jobs, jobfrac))
        csvfile.close()
 
 def printHelp(rootDir):
