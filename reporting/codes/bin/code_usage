@@ -663,6 +663,29 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        fig.savefig("{0}/hours_timeline.png".format(outDir))
     # End: if png
 
+    # Compute the total node hours and jobs
+    tot_nh = 0
+    tot_jobs = 0
+    for code in codes:
+       name = code.name
+       tot_nh += code_nh[name]
+       tot_jobs += code_jobs[name]
+    tot_nh += other_nh
+    tot_jobs += other_jobs
+    # Now compute the usage and job fractions
+    code_nhfrac = {}
+    code_jobfrac = {}
+    for code in codes:
+       name = code.name
+       if code_jobs[name] > 0:
+          code_nhfrac[name] = float(code_nh[name]) / tot_nh
+          code_jobfrac[name] = float(code_jobs[name]) / tot_jobs
+       else:
+          code_nhfrac[name] = 0.0
+          code_jobfrac[name] = 0.0
+    other_nhfrac = float(other_nh)/tot_nh
+    other_jobfrac = float(other_jobs)/tot_jobs
+
     # Bin the job sizes into the specified size bins and compute the mean job sizes
     # The tot arrays should contain keys with all the node counts encountered
 
@@ -867,7 +890,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           idx += 1
        pie_cols.append(pie_scalarMap.to_rgba(idx))
        pie_labels.append("Other Known Codes")
-       pie_vals.append(totnh - sum_nh - other_nh)
+       pie_vals.append(tot_nh - sum_nh - other_nh)
        pie_explode.append(0.05)
        idx += 1
        pie_cols.append(pie_scalarMap.to_rgba(idx))
@@ -889,29 +912,23 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        index = 0
        for name in sorted(code_nh, key=code_nh.get, reverse=True):
           index += 1
-          nhfrac = 100 * float(code_nh[name])/float(totnh)
-          jobfrac = 100 * float(code_jobs[name])/float(totjobs)
           meanjob = 0.0
           if code_nh[name] > 0:
              meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
-          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+          sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format(name, uscale * code_nh[name], 100*code_nhfrac[name], code_jobs[name], 100*code_jobfrac[name], code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
           if index == 10:
              sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("-10-", "----------", "------", "----", "------", "-----", "----", "------"))
           elif index == 40:
              sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("-40-", "----------", "------", "----", "------", "-----", "----", "------"))
-       nhfrac = 100 * float(other_nh)/float(totnh)
-       jobfrac = 100 * float(other_jobs)/float(totjobs)
        meanjob = 0.0
        if other_nh > 0:
           meanjob = float(other_sum_jobs_size)/float(other_nh)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Unknown", uscale * other_nh, 100*other_nhfrac, other_jobs, 100*other_jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
        sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("----", "----------", "------", "----", "------", "-----", "----", "------"))
-       nhfrac = 100 * float(totnh)/float(totnh)
-       jobfrac = 100 * float(totjobs)/float(totjobs)
        meanjob = 0.0
        if totnh > 0:
           meanjob = float(tot_sum_jobs_size)/float(totnh)
-       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Total", uscale * totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
+       sys.stdout.write("{0:>20s}{1:15d}{2:10.2f}{3:10d}{4:10.2f}{5:10d}{6:10.2f}{7:10d}\n".format("Total", uscale * totnh, 100, totjobs, 100, totusers, uscale * meanjob, uscale * int(tot_medh)))
        sys.stdout.write("{0:>20s}{1:>15s}{2:>10s}{3:>10s}{4:>10s}{5:>10s}{6:>10s}{7:>10s}\n".format("====", "==========", "======", "====", "======", "=====", "====", "======"))
 
     # Write HTML table if required
@@ -934,8 +951,6 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        index = 0
        for name in sorted(code_nh, key=code_nh.get, reverse=True):
           index += 1
-          nhfrac = 100 * float(code_nh[name])/float(totnh)
-          jobfrac = 100 * float(code_jobs[name])/float(totjobs)
           meanjob = 0.0
           if code_nh[name] > 0:
              meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
@@ -952,10 +967,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
       <td>{7:.2f}</td>
       <td>{8:d}</td>
    </tr>      
-""".format(index, name, code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
+""".format(index, name, code_nh[name], 100*code_nhfrac[name], code_jobs[name], 100*code_jobfrac[name], code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
 
-       nhfrac = 100 * float(other_nh)/float(totnh)
-       jobfrac = 100 * float(other_jobs)/float(totjobs)
        meanjob = 0.0
        if other_nh > 0:
           meanjob = float(other_sum_jobs_size)/float(other_nh)
@@ -972,10 +985,8 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
       <td>{6:.2f}</td>
       <td>{7:d}</td>
    </tr>      
-""".format("Other", other_nh, nhfrac, other_jobs, jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
+""".format("Other", other_nh, 100*other_nhfrac, other_jobs, 100*other_jobfrac, other_num_users, uscale * meanjob, uscale * int(other_medh)))
 
-       nhfrac = 100 * float(totnh)/float(totnh)
-       jobfrac = 100 * float(totjobs)/float(totjobs)
        meanjob = 0.0
        if totnh > 0:
           meanjob = float(tot_sum_jobs_size)/float(totnh)
@@ -991,7 +1002,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
       <td>{6:.2f}</td>
       <td>{7:d}</td>
    </tr>      
-""".format("Total", totnh, nhfrac, totjobs, jobfrac, totusers, uscale * meanjob, uscale * int(tot_medh)))
+""".format("Total", totnh, 100, totjobs, 100, totusers, uscale * meanjob, uscale * int(tot_medh)))
 
        htmlfile.write("</table>\n")
        htmlfile.close()
@@ -1001,24 +1012,18 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        csvfile = open("code_summary.csv", "w")
        csvfile.write('"{0}","{1}","{2}","{3}","{4}","{5}","{6}","{7}"\n'.format("Code", punit, "% Time", "Jobs", "% Jobs", "Users", "Mean", "Median"))
        for name in sorted(code_nh, key=code_nh.get, reverse=True):
-          nhfrac = 100 * float(code_nh[name])/float(totnh)
-          jobfrac = 100 * float(code_jobs[name])/float(totjobs)
           meanjob = 0.0
           if code_nh[name] > 0:
              meanjob = float(code_sum_jobs_size[name]) / float(code_nh[name])
-          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format(name, uscale * code_nh[name], nhfrac, code_jobs[name], jobfrac, code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
-       nhfrac = 100 * float(other_nh)/float(totnh)
-       jobfrac = 100 * float(other_jobs)/float(totjobs)
+          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format(name, uscale * code_nh[name], 100*code_nhfrac[name], code_jobs[name], 100*code_jobfrac[name], code_num_users[name],uscale * meanjob, uscale * int(code_medh[name])))
        meanjob = 0.0
        if other_nh > 0:
           meanjob = float(other_sum_jobs_size)/float(other_nh)
-          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Unknown", uscale * other_nh, nhfrac, other_jobs, jobfrac, other_num_users,uscale * meanjob, uscale * int(other_medh)))
-       nhfrac = 100 * float(totnh)/float(totnh)
-       jobfrac = 100 * float(totjobs)/float(totjobs)
+          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Unknown", uscale * other_nh, 100*other_nhfrac, other_jobs, 100*other_jobfrac, other_num_users,uscale * meanjob, uscale * int(other_medh)))
        meanjob = 0.0
        if totnh > 0:
           meanjob = float(tot_sum_jobs_size)/float(totnh)
-          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Total", uscale * totnh, nhfrac, totjobs, jobfrac, totusers,uscale * meanjob, uscale * int(tot_medh)))
+          csvfile.write('"{0}",{1:d},{2:.2f},{3:d},{4:.2f},{5:d},{6:.2f},{7:d}\n'.format("Total", uscale * totnh, 100, totjobs, 100, totusers,uscale * meanjob, uscale * int(tot_medh)))
        csvfile.close()
 
     if d3csv:
@@ -1049,12 +1054,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        csvfile.close()
 
     # Aggregate results on type metadata
-    metaUsageTable("pri_lang", "Programming Language", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, uscale, text=text, csv=csv, png=png)
-    metaUsageTable("type", "Application Type", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, uscale, text=text, csv=csv, png=png)
-    metaUsageTable("area", "Research Area", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, units, uscale, text=text, csv=csv, png=png)
+    metaUsageTable("pri_lang", "Programming Language", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, units, uscale, text=text, csv=csv, png=png)
+    metaUsageTable("type", "Application Type", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, units, uscale, text=text, csv=csv, png=png)
+    metaUsageTable("area", "Research Area", outDir, codes, code_nh, code_jobs, other_nh, other_jobs, units, uscale, text=text, csv=csv, png=png)
 
     # Print out any other executables with usage over defined threshold
-    percent = thresh * float(totnh)
+    percent = thresh * float(tot_nh)
     if text:
        if units == 'nodes':
           sys.stdout.write("\n\nUndefined executables with usage greater than {0:5.2f}% of total node hours:\n".format(100*thresh))
@@ -1065,11 +1070,11 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        other_tot = 0
        for name in sorted(other_codes, key=other_codes.get, reverse=True):
           if other_codes[name] > percent:
-             nhfrac = 100 * float(other_codes[name])/float(totnh)
+             nhfrac = 100 * float(other_codes[name])/float(tot_nh)
              other_tot += int(other_codes[name])
              sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format(name, uscale * other_codes[name], nhfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("----", "----------", "------"))
-       nhfrac = 100 * float(other_tot)/float(totnh)
+       nhfrac = 100 * float(other_tot)/float(tot_nh)
        sys.stdout.write("{0:>30s}{1:15d}{2:10.2f}\n".format("Total", uscale * other_tot, nhfrac))
        sys.stdout.write("{0:>30s}{1:>15s}{2:>10s}\n".format("====", "==========", "======"))
 
@@ -1077,7 +1082,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Finish nicely
     exit(0)
 
-def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh, other_jobs, totnh, totjobs, 
+def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh, other_jobs, 
                units, uscale, text=True, csv=False, png=True):
     """Print basic usage breakdown table grouped by specified code attribute/metadata
       
@@ -1090,8 +1095,6 @@ def metaUsageTable(metadata, label, outDir, codes, code_nh, code_jobs, other_nh,
           * code_jobs - Dictionary of code jobs by code (key is code name)
           * other_nh - Usage by undentified codes
           * other_jobs - Number of jobs by unidentified codes
-          * totnh - Total usage
-          * totjobs - Total jobs
           * units - Units that usage is specified in
           * uscale - Unit scaling factor for usage
           * text (optional) - Boolean specifying whether to print table to stdout (default=True)
