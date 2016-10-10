@@ -406,32 +406,30 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     codelabels = []
     csvfile = None
     statstable = None
-    if csv: 
-       csvfile = open(prefix + "_stats.csv", "w")
-       st = statsHeaderCSV(csvfile)
-       statstable = prettytable.PrettyTable(st)
+    csvfile = open(prefix + "_stats.csv", "w")
+    st = statsHeaderCSV(csvfile)
+    statstable = prettytable.PrettyTable(st)
     for name in reversed(knowncodes.index):
        if name == "Unidentified" or name == "Other":
           continue
        if len(code_nodelist[name]) > 0:
           users = jobframe.loc[jobframe['Code'] == name].User.ravel()
           nusers = len(pd.unique(users))
-          if csv:
-             st = statsReportCSV(name, codesum.loc[name]['Nh'], codesum.loc[name]['Jobs'] / use_scale, 
+          st = statsReportCSV(name, codesum.loc[name]['Nh'], codesum.loc[name]['Jobs'] / use_scale, 
                          totuse, totjobs, nusers, [x*size_scale for x in code_nodelist[name]], csvfile)
-             statstable.add_row(st)
+          statstable.add_row(st)
           # Lists for boxplots
-          codeplot.insert(0, [x*size_scale for x in code_nodelist[name]])
-          codelabels.insert(0, name)
+          if st[1] >= 1.0:
+             codeplot.insert(0, [x*size_scale for x in code_nodelist[name]])
+             codelabels.insert(0, name)
     if len(code_nodelist['Unidentified']) > 0:
        users = jobframe.loc[jobframe['Code'] == 'Unidentified'].User.ravel()
        nusers = len(pd.unique(users))
-       if csv:
-          st = statsReportCSV("Unidentified", codesum.loc['Unidentified']['Nh'],
+       st = statsReportCSV("Unidentified", codesum.loc['Unidentified']['Nh'],
                       codesum.loc['Unidentified']['Jobs'] / use_scale, 
                       totuse, totjobs, nusers, [x*size_scale for x in code_nodelist['Unidentified']],
                       csvfile)
-          statstable.add_row(st)
+       statstable.add_row(st)
        # Add to boxplot list
        codeplot.insert(0, [x*size_scale for x in code_nodelist['Unidentified']])
        codelabels.insert(0, 'Unidentified')
@@ -439,18 +437,17 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Series representing the total job size statistics
     tot_series = pd.Series(tot_nodelist)
     tot_series = tot_series.multiply(size_scale)
-    if csv:
-       st = statsReportCSV("Overall", totuse, totjobs, totuse, totjobs, totusers, 
+    st = statsReportCSV("Overall", totuse, totjobs, totuse, totjobs, totusers, 
                    [x*size_scale for x in tot_nodelist], csvfile)
-       statstable.add_row(st)
-       statstable.float_format = ".0"
-       statstable.float_format["% Use"] = ".2"
-       statstable.float_format["% Jobs"] = ".2"
-       statstable.float_format["Mean"] = ".2"
-       statstable.align = "r"
-       statstable.align["Application"] = "c"
-       print statstable
-       csvfile.close()
+    statstable.add_row(st)
+    statstable.float_format = ".0"
+    statstable.float_format["% Use"] = ".2"
+    statstable.float_format["% Jobs"] = ".2"
+    statstable.float_format["Mean"] = ".2"
+    statstable.align = "r"
+    statstable.align["Application"] = "c"
+    print statstable
+    csvfile.close()
     # Add to boxplot list
     codeplot.insert(0, tot_series)
     codelabels.insert(0, 'Overall')
