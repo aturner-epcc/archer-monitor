@@ -19,7 +19,7 @@
 #
 
 [code info]
-name: Unified Model
+name: Met Office UM
 regexp: ^[a-z]{5}\.exe|um_atmos
 
 [metadata]

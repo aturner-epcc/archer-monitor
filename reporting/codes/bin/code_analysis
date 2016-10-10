@@ -40,11 +40,17 @@ from timelineplot import get_filelist
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
+
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
-matplotlib.rcParams.update({'font.size': 9})
+matplotlib.rcParams.update({'font.size': 8})
 matplotlib.rcParams.update({'figure.autolayout': True})
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
+import seaborn as sns
+
+
 import err_handle as error
 import sys
 import os
@@ -56,6 +62,8 @@ import grp
 import re
 import time
 import prettytable
+
+kau = 0.36
 
 def main(argv):
 
@@ -379,6 +387,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     topcode = topcode.append(unknowncodes)
     topcode = topcode.sort('Nh')
 
+    # Pie chart of codes
+    plotPie(topcode['Nh'].tolist(), topcode.index, 0.02, 'code_pie.png')
+
     # Bar chart of codes
     topcode.plot(kind='barh', y='Nh', legend=False, facecolor='red')
     plt.ylabel('')
@@ -502,16 +513,54 @@ def statsReportCSV(label, use, jobs, totuse, totjobs, nusers, datalist, csvfile)
     q3 = dataseries.quantile(0.75)
     max = dataseries.max()
     mean = dataseries.mean()
-    csvfile.write('"{}",{:.2f}%,{:.2f}%,{:.0f},{:.0f},{:.0f},{:.0f},{:.0f},{:.2f},{}\n'.format(label, 
-                   pusage, pjobs, min, q1, median, q3, max, mean, nusers))
+    csvfile.write('"{}",{:.2f}%,{:.3f},{:.2f}%,{:.0f},{:.0f},{:.0f},{:.0f},{:.0f},{:.0f},{:.2f},{}\n'.format(label, 
+                   pusage, use*kau, pjobs, jobs, min, q1, median, q3, max, mean, nusers))
     return (label, pusage, pjobs, min, q1, median, q3, max, mean, nusers)
 
 #=============================================================
 # Print header line for stats
 #=============================================================
 def statsHeaderCSV(csvfile):
-    csvfile.write('"Application","% Use","% Jobs","Min.","Q1","Median","Q3","Max.","Mean","Users"\n')
+    csvfile.write('"Application","% Use","Use (kAU)","% Jobs","Jobs","Min.","Q1","Median","Q3","Max.","Mean","Users"\n')
     return ("Application","% Use","% Jobs","Min.","Q1","Median","Q3","Max.","Mean","Users")
+
+#=======================================================
+# Function to save pie chart of specified values
+#=======================================================
+def plotPie(values, labels, limit, file):
+    # Set up a colormap for pie charts
+    pie_colmap = cm = plt.get_cmap('Pastel2') 
+    pie_cNorm  = colors.Normalize(vmin=0, vmax=len(values))
+    pie_scalarMap = cmx.ScalarMappable(norm=pie_cNorm, cmap=pie_colmap)
+    fig = plt.figure(1)
+    fig.clf()
+    ax = plt.subplot(1, 1, 1)
+    pie_vals = []
+    pie_cols = []
+    pie_explode = []
+    pie_labels = []
+    sum_vals = float(sum(values))
+    for i, value in enumerate(values):
+         pie_cols.append(pie_scalarMap.to_rgba(i))
+         pie_vals.append(value)
+         pie_explode.append(0.05) 
+         # Add the % to wedge labels.
+         pie_labels.append("{} ({:.1f}%)".format(labels[i], 100.0*value/sum_vals))
+    ax.pie(pie_vals, explode=pie_explode, labels=pie_labels, colors=pie_cols,
+           autopct='', wedgeprops={'linewidth': 0})
+#           pctdistance=0.9, autopct=autopct_generator(limit*100.0))
+    ax.axis('equal')
+    fig.savefig(file, dpi=300, bbox_inches='tight')
+
+
+#=======================================================
+# Function generate function to automatically suppress
+# % labels on pie chart below defined %age
+#=======================================================
+def autopct_generator(limit):
+    def inner_autopct(pct):
+        return ('%.1f%%' % pct) if pct > limit else ''
+    return inner_autopct
 
 #=======================================================
 # Function to print help

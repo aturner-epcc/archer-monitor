@@ -563,6 +563,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
        import matplotlib.colors as colors
        import matplotlib.cm as cmx
        import matplotlib.patches as mpatches
+       import seaborn as sns
 
        # Set up a nice colormap to vary the line colours
        colmap = cm = plt.get_cmap('spectral') 
