@@ -457,6 +457,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     plt.xlabel("Job Size / " + size_unit)
     plt.savefig(prefix + "_sizebycode.png", dpi=300)
     plt.clf()
+    # Boxplots of codes
+    plt.boxplot(codeplot, notch=0, sym="", showmeans=True, vert=False, whis=1.5, labels=codelabels)
+    plt.xlabel("Job Size / " + size_unit)
+    plt.ylim([0,10000])
+    plt.savefig(prefix + "_sizebycode_small.png", dpi=300)
+    plt.clf()
 
     # List users associated with each application
     if listusers:
