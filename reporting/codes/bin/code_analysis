@@ -110,14 +110,15 @@ def main(argv):
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "l:s:e:c:g:k:p:vuh", 
-                 ["logdir=", "start=", "end=", "cores=", "group=", "kau=", "prefix=", 
+        opts, args = getopt.getopt(argv, "l:s:e:c:g:x:k:p:vuh", 
+                 ["logdir=", "start=", "end=", "cores=", "group=", "notgroup=", "kau=", "prefix=", 
                   "csv", "users", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
     # Parse the command-line options
     bygroup = False
+    bynotgroup = False
     grouplist = None
     csv = False
     listusers = False
@@ -141,6 +142,10 @@ def main(argv):
             print "   Getting usage for groups = {0}".format(arg)
             grouplist = arg.split(",")
             bygroup = True
+        elif opt in ("-x", "--notgroup"):
+            print "   Excluding usage for groups = {0}".format(arg)
+            grouplist = arg.split(",")
+            bynotgroup = True
         elif opt in ("-p", "--prefix"):
             prefix = arg.strip()
         elif opt in ("-u", "--users"):
@@ -258,6 +263,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
           
              if bygroup:
                 if project not in grouplist:
+                   keepline = False
+             if bynotgroup:
+                if project in grouplist:
                    keepline = False
 
              # Try to match the code
