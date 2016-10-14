@@ -144,15 +144,16 @@ def main(argv):
     #=======================================================
     # Read the command-line options
     try:
-        opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:qh", 
+        opts, args = getopt.getopt(argv, "b:l:i:s:e:c:g:x:qh", 
                  ["top=", "thresh=", "bins=", "logdir=", "interval=", "start=",
-                  "end=", "cores=", "group=", "html", "quiet", "noplot", "csv", 
+                  "end=", "cores=", "group=", "notgroup=", "html", "quiet", "noplot", "csv", 
                   "d3csv", "help"])
     except getopt.GetoptError:
         error.handleError("Could not parse command line options\n")
 
     # Parse the command-line options
     byuser = False
+    bynotuser = False
     csv = False
     d3csv = False
     png = True
@@ -217,6 +218,19 @@ def main(argv):
                      tokens = line.split()
                      userlist.append('"' + tokens[1] + '"')
             byuser = True
+        elif opt in ("-x", "--notgroup"):
+            print "   Getting usage iexcluding groups = {0}".format(arg)
+            groups = arg.split(",")
+            for group in groups:
+               bashCommand = "ldapsearch -x cn={0}".format(group)
+               ldap = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+               users = ldap.communicate()[0]
+               for line in users.splitlines():
+                  if "memberUid" in line:
+                     line = line.rstrip()
+                     tokens = line.split()
+                     userlist.append('"' + tokens[1] + '"')
+            bynotuser = True
         elif opt in ("-h", "--help"):
             printHelp(rootDir)
             exit(0)
@@ -375,6 +389,12 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
             if byuser:
                # Quotes added to counter substring username matches
                if '"' + user + '"' in userlist:
+                  addjob = True
+               else:
+                  addjob = False
+            if bynotuser:
+               # Quotes added to counter substring username matches
+               if '"' + user + '"' not in userlist:
                   addjob = True
                else:
                   addjob = False
