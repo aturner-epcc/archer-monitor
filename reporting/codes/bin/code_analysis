@@ -383,9 +383,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     lowcode = knowncodes.loc[knowncodes['Nh'] < 0.01*totuse]
 
     # Add unidentified and other code details and re-sort
+    topcode = topcode.sort('Nh')
     topcode.loc['Other'] = lowcode.sum()
     topcode = topcode.append(unknowncodes)
-    topcode = topcode.sort('Nh')
 
     # Pie chart of codes
     plotPie(topcode['Nh'].tolist(), topcode.index, 0.02, 'code_pie.png')
