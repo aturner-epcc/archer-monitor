@@ -387,13 +387,14 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Extract the unidentified data and the top usage codes
     knowncodes = codesum.drop(codesum[codesum.index == 'Unidentified'].index)
     unknowncodes = codesum.drop(codesum[codesum.index != 'Unidentified'].index)
-    topcode = knowncodes.loc[knowncodes['Nh'] >= 0.01*totuse]
+    ttopcode = knowncodes.loc[knowncodes['Nh'] >= 0.01*totuse]
     lowcode = knowncodes.loc[knowncodes['Nh'] < 0.01*totuse]
 
     # Add unidentified and other code details and re-sort
-    topcode = topcode.sort('Nh')
+    ttopcode = ttopcode.sort('Nh')
+    topcode = unknowncodes
     topcode.loc['Other'] = lowcode.sum()
-    topcode = topcode.append(unknowncodes)
+    topcode = topcode.append(ttopcode)
 
     # Pie chart of codes
     plotPie(topcode['Nh'].tolist(), topcode.index, 0.02, 'code_pie.png')
@@ -468,7 +469,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     # Boxplots of codes
     plt.boxplot(codeplot, notch=0, sym="", showmeans=True, vert=False, whis=1.5, labels=codelabels)
     plt.xlabel("Job Size / " + size_unit)
-    plt.xlim([0,10000])
+    plt.xlim([0,5000])
     plt.savefig(prefix + "_sizebycode_small.png", dpi=300)
     plt.clf()
 
