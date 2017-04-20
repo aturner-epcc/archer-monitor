@@ -20,7 +20,7 @@
 
 [code info]
 name: NEMO
-regexp: nemo|opa|orca|xios_server
+regexp: nemo|opa|orca|xios
 
 [metadata]
 primary language: Fortran
