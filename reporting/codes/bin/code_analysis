@@ -170,7 +170,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     if size_scale > 1:
        print "Cores per node: ", size_scale
     if grouplist is not None:
-       print "Restricting usage to group(s): " + grouplist
+       print "Restricting usage to group(s): " + str(grouplist)
 
     # Check the directory exists
     if not os.path.isdir(indir):

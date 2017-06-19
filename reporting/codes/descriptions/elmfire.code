@@ -20,7 +20,7 @@
 
 [code info]
 name: ELMFIRE
-regexp: elmfire
+regexp: elmfire|elmfire_.|ELMFIRE_Cray-
 
 [metadata]
 primary language: Fortran

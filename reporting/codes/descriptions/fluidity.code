@@ -20,7 +20,7 @@
 
 [code info]
 name: Fluidity
-regexp: fluidity
+regexp: fluidity|fldecomp|flredecomp
 
 [metadata]
 primary language: Fortran

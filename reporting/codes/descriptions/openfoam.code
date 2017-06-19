@@ -20,7 +20,7 @@
 
 [code info]
 name: OpenFOAM
-regexp: foam|Foam
+regexp: foam|Foam|FOAM
 
 [metadata]
 primary language: C++

@@ -20,7 +20,7 @@
 
 [code info]
 name: CASTEP
-regexp: castep
+regexp: castep|pot1d
 
 [metadata]
 primary language: Fortran
