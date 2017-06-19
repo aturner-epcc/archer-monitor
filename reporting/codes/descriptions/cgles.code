@@ -19,8 +19,8 @@
 #
 
 [code info]
-name: HYDRA
-regexp: jm51|hyd-|hydra|hyd.par
+name: CgLES
+regexp: cgles
 
 [metadata]
 primary language: Fortran
