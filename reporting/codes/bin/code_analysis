@@ -380,9 +380,9 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     plt.clf()
 
     # Get the summarised usage in cores
-    codesum = jobframe.groupby('Code').agg(np.sum).sort('Nh')
+    codesum = jobframe.groupby('Code').agg(np.sum).sort_values('Nh')
     codesum = codesum.multiply(use_scale)
-    usersum = jobframe.groupby('User').agg(np.sum).sort('Nh')
+    usersum = jobframe.groupby('User').agg(np.sum).sort_values('Nh')
 
     # Extract the unidentified data and the top usage codes
     knowncodes = codesum.drop(codesum[codesum.index == 'Unidentified'].index)
@@ -391,7 +391,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
     lowcode = knowncodes.loc[knowncodes['Nh'] < 0.01*totuse]
 
     # Add unidentified and other code details and re-sort
-    ttopcode = ttopcode.sort('Nh')
+    ttopcode = ttopcode.sort_values('Nh')
     topcode = unknowncodes
     topcode.loc['Other'] = lowcode.sum()
     topcode = topcode.append(ttopcode)
@@ -493,7 +493,7 @@ General Public License for more details: <http://www.gnu.org/licenses/>.
 
        # Unknown applications
        unknowncodes =  jobframe.loc[jobframe['Code'] == 'Unidentified']
-       codesum = unknowncodes.groupby('Exe').agg(np.sum).sort('Nh')
+       codesum = unknowncodes.groupby('Exe').agg(np.sum).sort_values('Nh')
        userfile.write('\n# User List: Unknown Applications #\n\n')
        for name in reversed(codesum.index):
           if codesum.loc[name]['Nh'] >= 0.01*totuse:
