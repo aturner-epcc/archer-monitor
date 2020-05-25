@@ -1,22 +1,21 @@
-#!/bin/bash --login
+#!/bin/bash
 #############################################################
 # get_usage.bash
 #############################################################
 #
-# Get the current usage of the system from qstat
+# Get the current usage of the system from apstat
 #
-# A. R. Turner, EPCC 2020
+# A. R. Turner, EPCC 2014
 #
 #############################################################
 # Configuration
 #############################################################
 #
 # Command to list the job status
-QSTAT="qstat -rwt"
+APSTAT=apstat
 
 # Get the lines from the APSTAT command into an array
-qstatout=$($QSTAT)
-IFS=$'\r\n' apps=($qstatout)
+IFS=$'\r\n' apps=($($APSTAT))
 
 # Write the start indicator and timestamp 
 TIME=`date --rfc-3339=seconds`
@@ -45,7 +44,7 @@ do
    # Are we currently in the list of apps?
    if [ $inapps == 0 ]; then
       # No, look for the start of app list
-      if [[ $line =~ "------" ]]; then
+      if [[ $line =~ Apid ]]; then
          inapps=1
       fi
    else
@@ -55,7 +54,7 @@ do
       else 
          # Print this app line
          IFS=' ' read -a tokens <<< "${line}"
-         jobnodes=${tokens[5]}
+         jobnodes=${tokens[4]}
          usednodes=$(( usednodes + jobnodes ))
          for i in {0..4}
          do
