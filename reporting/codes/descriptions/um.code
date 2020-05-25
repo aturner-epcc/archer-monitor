@@ -20,7 +20,7 @@
 
 [code info]
 name: Met Office UM
-regexp: ^[a-z]{5}\.exe|um_atmos
+regexp: ^[a-z]{5}\.exe|um_atmos|um_atmos\.exe|um-atmos\.exe
 
 [metadata]
 primary language: Fortran
